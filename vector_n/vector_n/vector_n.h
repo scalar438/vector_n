@@ -6,6 +6,9 @@
 #include <numeric>
 #include <cassert> 
 
+template <size_t N>
+using vector_size = std::array<size_t, N>;
+
 namespace impl
 {
 	template<typename Arg>
@@ -92,13 +95,13 @@ namespace impl
 }
 
 template<typename ElemetType, size_t numDims>
-class NdMatrix
+class vector_n
 {
 public:
-	NdMatrix() {};
+	vector_n() {};
 
 	template<typename ... Sizes>
-	NdMatrix(Sizes ... sizes)
+	vector_n(Sizes ... sizes)
 		: data(impl::product(sizes ...))
 		, sizes{ size_t(sizes)... }
 	{
@@ -109,7 +112,7 @@ public:
 		impl::calcCoefficients(dims.data(), sizes ...);
 	}
 
-	inline void resize(const std::array<size_t, numDims> &sizesDims)
+	inline void resize(const vector_size <numDims> &sizesDims)
 	{
 		data.resize(std::accumulate(sizesDims.begin(), sizesDims.end(), 1, std::multiplies<size_t>()));
 		sizes = sizesDims;
@@ -145,14 +148,14 @@ public:
 		return data[getIndex(indexes ...)];
 	}
 
-	inline int size(size_t numberDims)
+	inline const size_t size(const int numberDims)
 	{
-		static_assert((numberDims - 1) < numDims && (numberDims - 1) >= 0, "Parameters count is invalid");
+		assert((numberDims - 1) <= numDims && (numberDims - 1) >= 0 && "Parameters count is invalid");
 
 		return sizes[numberDims - 1];
 	}
 
-	inline const std::array<size_t, numDims>& size()
+	inline const vector_size<numDims>& size() const
 	{
 		return sizes;
 	}
@@ -182,3 +185,4 @@ private:
 	std::array<size_t, numDims> dims;
 	std::array<size_t, numDims> sizes;
 };
+

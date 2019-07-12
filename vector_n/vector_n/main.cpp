@@ -3,19 +3,157 @@
 
 #include "pch.h"
 #include <iostream>
+#include "vector_n.h"
+#include <omp.h>
+#include <ctime>
+#include <cassert>   
+
+
+typedef std::vector<int> vec_int;
+typedef std::vector<vec_int> vec2_int;
+typedef std::vector<vec2_int> vec3_int;
+
+void testVector4d()
+{
+	int nx = 200, ny = 60, nz = 70, nt = 200;
+
+	vector_n<int, 4> a(nx, ny, nz, nt);
+	std::vector<std::vector<std::vector<vec_int>>> vec4;
+	vec4.resize(nx, vec3_int(ny, vec2_int(nz, vec_int(nt))));
+	std::vector<int> expected_data;
+
+	size_t start_time_new = clock(); // начальное время
+
+//#pragma omp parallel for
+	for (int i = 0, n = 0; i < nx; ++i)
+	{
+		for (int j = 0; j < ny; ++j)
+		{
+			for (int k = 0; k < nz; ++k)
+			{
+				for (int g = 0; g < nt; ++g)
+				{
+					//expected_data.push_back(n);
+					a(i, j, k, g) = i + j + k + g;// n;
+					//++n;
+				}
+			}
+		}
+	}
+
+	size_t search_time = clock() - start_time_new; // искомое в
+
+	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
+
+	size_t start_time_vec = clock(); // начальное время
+//#pragma omp parallel for
+	for (int i = 0, n = 0; i < nx; ++i)
+	{
+		for (int j = 0; j < ny; ++j)
+		{
+			for (int k = 0; k < nz; ++k)
+			{
+				for (int g = 0; g < nt; ++g)
+				{
+					vec4[i][j][k][g] = i + j + k + g;// ++n;
+				}
+			}
+		}
+	}
+
+	size_t time_vec = clock() - start_time_vec; // искомое в
+	std::cout << "TIME 4-DIM VECTOR = " << time_vec << std::endl;
+	std::cout << "TOTAL AMOUNT = " << nx * ny * nz * nt << std::endl;
+	std::cout << std::endl;
+}
+
+void testVector2d()
+{
+	int nx = 40000, ny = 4200;
+
+	vector_n<int, 2> a(nx, ny);
+	std::vector<vec_int> vec4;
+	vec4.resize(nx, vec_int(ny));
+
+	size_t start_time_new = clock(); // начальное время
+	for (int i = 0, n = 0; i < nx; ++i)
+	{
+		for (int j = 0; j < ny; ++j)
+		{
+			a(i, j) = n;
+			++n;
+		}
+	}
+
+	size_t search_time = clock() - start_time_new; // искомое в
+
+	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
+
+	size_t start_time_vec = clock(); // начальное время
+	for (int i = 0, n = 0; i < nx; ++i)
+	{
+		for (int j = 0; j < ny; ++j)
+		{
+			vec4[i][j] = ++n;
+		}
+	}
+
+	size_t time_vec = clock() - start_time_vec; // искомое в
+	std::cout << "TIME 2-DIM VECTOR = " << time_vec << std::endl;
+	std::cout << "TOTAL AMOUNT = " << nx * ny << std::endl;
+	std::cout << std::endl;
+
+}
+
+void testVector3d()
+{
+	int nx = 1000, ny = 1000, nz = 160;
+
+	vector_n<int, 3> a(nx, ny, nz);
+	std::vector<std::vector<vec_int>> vec3;
+	vec3.resize(nx, vec2_int(ny, vec_int(nz)));
+
+	size_t start_time_new = clock(); // начальное время
+	for (int i = 0, n = 0; i < nx; ++i)
+	{
+		for (int j = 0; j < ny; ++j)
+		{
+			for (int k = 0; k < nz; ++k)
+			{
+				a(i, j, k) = n;
+				++n;
+			}
+		}
+	}
+
+	size_t search_time = clock() - start_time_new; // искомое в
+
+	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
+
+	size_t start_time_vec = clock(); // начальное время
+	for (int i = 0, n = 0; i < nx; ++i)
+	{
+		for (int j = 0; j < ny; ++j)
+		{
+			for (int k = 0; k < nz; ++k)
+			{
+				vec3[i][j][k] = ++n;
+			}
+		}
+	}
+
+	size_t time_vec = clock() - start_time_vec; // искомое в
+	std::cout << "TIME 3-DIM VECTOR = " << time_vec << std::endl;
+	std::cout << "TOTAL AMOUNT = " << nx * ny *nz << std::endl;
+	std::cout << std::endl;
+
+}
 
 int main()
 {
-    std::cout << "Hello World!\n"; 
+	testVector4d();
+	testVector2d();
+	testVector3d();
+
+	return 0;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
