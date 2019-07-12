@@ -126,8 +126,7 @@ void testVector3d()
 		}
 	}
 
-	size_t search_time = clock() - start_time_new; // искомое в
-
+	size_t search_time = clock() - start_time_new;
 	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
 
 	size_t start_time_vec = clock(); // начальное время
@@ -142,7 +141,7 @@ void testVector3d()
 		}
 	}
 
-	size_t time_vec = clock() - start_time_vec; // искомое в
+	size_t time_vec = clock() - start_time_vec;
 	std::cout << "TIME 3-DIM VECTOR = " << time_vec << std::endl;
 	std::cout << "TOTAL AMOUNT = " << nx * ny *nz << std::endl;
 	std::cout << std::endl;
