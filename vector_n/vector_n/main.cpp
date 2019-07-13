@@ -22,7 +22,7 @@ void testVector4d()
 	vec4.resize(nx, vec3_int(ny, vec2_int(nz, vec_int(nt))));
 	std::vector<int> expected_data;
 
-	size_t start_time_new = clock(); // начальное время
+	size_t start_time_new = clock(); // РЅР°С‡Р°Р»СЊРЅРѕРµ РІСЂРµРјСЏ
 
 //#pragma omp parallel for
 	for (int i = 0, n = 0; i < nx; ++i)
@@ -41,11 +41,11 @@ void testVector4d()
 		}
 	}
 
-	size_t search_time = clock() - start_time_new; // искомое в
+	size_t search_time = clock() - start_time_new; // РёСЃРєРѕРјРѕРµ РІ
 
 	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
 
-	size_t start_time_vec = clock(); // начальное время
+	size_t start_time_vec = clock(); // РЅР°С‡Р°Р»СЊРЅРѕРµ РІСЂРµРјСЏ
 //#pragma omp parallel for
 	for (int i = 0, n = 0; i < nx; ++i)
 	{
@@ -61,7 +61,7 @@ void testVector4d()
 		}
 	}
 
-	size_t time_vec = clock() - start_time_vec; // искомое в
+	size_t time_vec = clock() - start_time_vec; // РёСЃРєРѕРјРѕРµ РІ
 	std::cout << "TIME 4-DIM VECTOR = " << time_vec << std::endl;
 	std::cout << "TOTAL AMOUNT = " << nx * ny * nz * nt << std::endl;
 	std::cout << std::endl;
@@ -75,7 +75,7 @@ void testVector2d()
 	std::vector<vec_int> vec4;
 	vec4.resize(nx, vec_int(ny));
 
-	size_t start_time_new = clock(); // начальное время
+	size_t start_time_new = clock(); // РЅР°С‡Р°Р»СЊРЅРѕРµ РІСЂРµРјСЏ
 	for (int i = 0, n = 0; i < nx; ++i)
 	{
 		for (int j = 0; j < ny; ++j)
@@ -85,11 +85,11 @@ void testVector2d()
 		}
 	}
 
-	size_t search_time = clock() - start_time_new; // искомое в
+	size_t search_time = clock() - start_time_new; // РёСЃРєРѕРјРѕРµ РІ
 
 	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
 
-	size_t start_time_vec = clock(); // начальное время
+	size_t start_time_vec = clock(); // РЅР°С‡Р°Р»СЊРЅРѕРµ РІСЂРµРјСЏ
 	for (int i = 0, n = 0; i < nx; ++i)
 	{
 		for (int j = 0; j < ny; ++j)
@@ -98,7 +98,7 @@ void testVector2d()
 		}
 	}
 
-	size_t time_vec = clock() - start_time_vec; // искомое в
+	size_t time_vec = clock() - start_time_vec; // РёСЃРєРѕРјРѕРµ РІ
 	std::cout << "TIME 2-DIM VECTOR = " << time_vec << std::endl;
 	std::cout << "TOTAL AMOUNT = " << nx * ny << std::endl;
 	std::cout << std::endl;
@@ -113,7 +113,7 @@ void testVector3d()
 	std::vector<std::vector<vec_int>> vec3;
 	vec3.resize(nx, vec2_int(ny, vec_int(nz)));
 
-	size_t start_time_new = clock(); // начальное время
+	size_t start_time_new = clock(); // РЅР°С‡Р°Р»СЊРЅРѕРµ РІСЂРµРјСЏ
 	for (int i = 0, n = 0; i < nx; ++i)
 	{
 		for (int j = 0; j < ny; ++j)
@@ -129,7 +129,7 @@ void testVector3d()
 	size_t search_time = clock() - start_time_new;
 	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
 
-	size_t start_time_vec = clock(); // начальное время
+	size_t start_time_vec = clock(); // РЅР°С‡Р°Р»СЊРЅРѕРµ РІСЂРµРјСЏ
 	for (int i = 0, n = 0; i < nx; ++i)
 	{
 		for (int j = 0; j < ny; ++j)
