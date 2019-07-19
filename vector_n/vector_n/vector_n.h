@@ -23,18 +23,6 @@ namespace impl
 		return product(args...) * first;
 	}
 
-	template<typename FirstIndex, typename SecondIndex, typename ... Indexes>
-	inline static FirstIndex index(size_t *sizes, FirstIndex first, SecondIndex second)
-	{
-		return first * (*sizes) + second;
-	}
-
-	template<typename FirstIndex, typename SecondIndex, typename ... Indexes>
-	inline static FirstIndex index(size_t *sizes, FirstIndex first, SecondIndex second, Indexes ... indexes)
-	{
-		return index(sizes, index(sizes++, first, second), indexes...);
-	}
-
 	template<typename FirstIndex, typename ... Indexes>
 	inline static FirstIndex index(size_t *sizes, size_t *dims, FirstIndex first)
 	{
