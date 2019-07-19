@@ -136,7 +136,25 @@ public:
 		return data[getIndex(indexes ...)];
 	}
 
-	inline const size_t size(const int numberDims)
+	template<typename ... Indexes>
+	inline ElemetType& at(Indexes ... indexes)
+	{
+		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+		return data[getIndex(indexes ...)];
+	}
+
+	template<typename ... Indexes>
+	inline const ElemetType& at(Indexes ... indexes) const
+	{
+		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+		return data[getIndex(indexes ...)];
+	}
+
+	inline const size_t& size(const int numberDims) const
 	{
 		assert((numberDims - 1) <= numDims && (numberDims - 1) >= 0 && "Parameters count is invalid");
 
