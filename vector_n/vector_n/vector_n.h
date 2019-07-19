@@ -171,6 +171,26 @@ public:
 		std::vector<ElementType>().swap(data);
 	}
 
+	typename std::vector<ElementType>::iterator begin()
+	{
+		return data.begin();
+	}
+
+	typename std::vector<ElementType>::iterator end()
+	{
+		return data.end();
+	}
+
+	typename std::vector<ElementType>::const_iterator begin() const
+	{
+		return data.begin();
+	}
+
+	typename std::vector<ElementType>::const_iterator end() const
+	{
+		return data.end();
+	}
+
 	inline std::vector<ElementType>& getData()
 	{
 		return data;
