@@ -82,7 +82,7 @@ namespace impl
 	};
 }
 
-template<typename ElemetType, size_t numDims>
+template<typename ElementType, size_t numDims>
 class vector_n
 {
 public:
@@ -119,7 +119,7 @@ public:
 	}
 
 	template<typename ... Indexes>
-	inline ElemetType& operator()(Indexes ... indexes)
+	inline ElementType& operator()(Indexes ... indexes)
 	{
 		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
 		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
@@ -128,7 +128,7 @@ public:
 	}
 
 	template<typename ... Indexes>
-	inline const ElemetType& operator()(Indexes ... indexes) const
+	inline const ElementType& operator()(Indexes ... indexes) const
 	{
 		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
 		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
@@ -137,7 +137,7 @@ public:
 	}
 
 	template<typename ... Indexes>
-	inline ElemetType& at(Indexes ... indexes)
+	inline ElementType& at(Indexes ... indexes)
 	{
 		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
 		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
@@ -146,7 +146,7 @@ public:
 	}
 
 	template<typename ... Indexes>
-	inline const ElemetType& at(Indexes ... indexes) const
+	inline const ElementType& at(Indexes ... indexes) const
 	{
 		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
 		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
@@ -168,10 +168,10 @@ public:
 
 	inline void clear()
 	{
-		std::vector<ElemetType>().swap(data);
+		std::vector<ElementType>().swap(data);
 	}
 
-	inline std::vector<ElemetType>& getData()
+	inline std::vector<ElementType>& getData()
 	{
 		return data;
 	}
@@ -187,7 +187,7 @@ private:
 		return index;
 	}
 
-	std::vector<ElemetType> data;
+	std::vector<ElementType> data;
 	std::array<size_t, numDims> dims;
 	std::array<size_t, numDims> sizes;
 };
