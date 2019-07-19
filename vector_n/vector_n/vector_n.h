@@ -24,19 +24,19 @@ namespace impl
 	}
 
 	template<typename FirstIndex, typename ... Indexes>
-	inline static FirstIndex index(size_t *sizes, size_t *dims, FirstIndex first)
+	inline static FirstIndex index(const size_t *sizes, const size_t *dims, FirstIndex first)
 	{
 		return *dims * first;
 	}
 
 	template<typename FirstIndex, typename ... Indexes>
-	inline static FirstIndex index(size_t *sizes, size_t *dims, FirstIndex first, Indexes ... indexes)
+	inline static FirstIndex index(const size_t *sizes, const size_t *dims, FirstIndex first, Indexes ... indexes)
 	{
 		return *dims * first + index(sizes, dims + 1, indexes...);
 	}
 
 	template<typename FirstArg>
-	inline void calcCoefficients(/*const*/ size_t *arr, FirstArg first)
+	inline void calcCoefficients(size_t *arr, FirstArg first)
 	{
 		*arr = 1;
 	}
