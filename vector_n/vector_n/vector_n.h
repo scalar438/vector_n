@@ -35,6 +35,19 @@ namespace impl
 		return *dims * first + index(sizes, dims + 1, indexes...);
 	}
 
+	template<typename FirstIndex, typename ... Indexes>
+	inline static void checkIndex(const size_t *size, FirstIndex first)
+	{
+		assert(size_t(*size) < *size && "Index is invalid.");
+	}
+
+	template<typename FirstIndex, typename ... Indexes>
+	inline static void checkIndex(const size_t *sizes, FirstIndex first, Indexes ... indexes)
+	{
+		checkIndex(sizes, first);
+		checkIndex(sizes + 1, indexes...);
+	}
+
 	template<typename FirstArg>
 	inline void calcCoefficients(size_t *arr, FirstArg first)
 	{
@@ -200,6 +213,8 @@ private:
 	template<typename ... Indexes>
 	size_t getIndex(Indexes ... indexes)
 	{
+		impl::checkIndex(sizes.data(), indexes...);
+
 		auto index = impl::index(sizes.data(), dims.data(), indexes...);
 
 		assert(size_t(index) < data.size() && "Parameters count dimensional is invalid");
