@@ -88,6 +88,81 @@ namespace impl
 	{
 		const static auto value = std::is_integral<Arg>::value;
 	};
+
+	template<class ElementType, int numDims> class VectorGeneral
+	{
+	public:
+		VectorGeneral(const std::array<size_t, numDims> &adims,
+			const std::array<size_t, numDims> &asizes, ElementType *adata) :
+			dims(adims), sizes(sizes), data(adata) {}
+
+		template<typename ... Indexes>
+		inline ElementType& operator()(Indexes ... indexes)
+		{
+			static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+			static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+			
+			return data[getIndex(indexes ...)];
+		}
+
+		template<typename ... Indexes>
+		inline const ElementType& operator()(Indexes ... indexes) const
+		{
+			static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+			static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+			return data[getIndex(indexes ...)];
+		}
+
+		template<typename ... Indexes>
+		inline ElementType& at(Indexes ... indexes)
+		{
+			static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+			static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+			if(!impl::checkIndex(indexes...)) throw std::out_of_range("One or more indexes are invalid");
+
+			return data[getIndex(indexes ...)];
+		}
+
+		template<typename ... Indexes>
+		inline const ElementType& at(Indexes ... indexes) const
+		{
+			static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+			static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+			if(!impl::checkIndex(indexes...)) throw std::out_of_range("One or more indexes are invalid");
+
+			return data[getIndex(indexes ...)];
+		}
+
+		template<typename ... Indexes>
+		size_t getIndex(Indexes ... indexes)
+		{
+			bool f = impl::checkIndex(sizes.data(), indexes...);
+			assert(f);
+
+			auto index = impl::index(sizes.data(), dims.data(), indexes...);
+
+			return index;
+		}
+
+		std::array<size_t, numDims> dims;
+		std::array<size_t, numDims> sizes;
+
+		ElementType *data;
+	};
+
+	template<class T>
+	class Indexer
+	{
+		Indexer(T *data);
+		void begin(){}
+
+		void end(){}
+
+		void rev();
+	};
 }
 
 template<typename ElementType, size_t numDims>
