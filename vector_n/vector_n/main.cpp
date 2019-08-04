@@ -6,7 +6,7 @@
 #include "vector_n.h"
 #include <omp.h>
 #include <ctime>
-#include <cassert>   
+#include <cassert>
 
 
 typedef std::vector<int> vec_int;
@@ -40,7 +40,7 @@ void testVector4d()
 			}
 		}
 	}
-
+	
 	size_t search_time = clock() - start_time_new; // искомое в
 
 	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;

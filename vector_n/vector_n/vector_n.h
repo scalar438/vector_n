@@ -74,7 +74,6 @@ namespace impl
 	template<class First, class ...Args> struct AllNumeric
 	{
 		const static auto value = std::is_integral<First>::value && AllNumeric<Args...>::value;
-
 	};
 
 	template<class Arg> struct AllNumeric<Arg>
@@ -106,6 +105,7 @@ public:
 		, sizes{ size_t(sizes)... }
 	{
 		static_assert(sizeof...(sizes) == numDims, "Parameters count is invalid");
+		static_assert(impl::AllNumeric<Sizes...>::value, "Parameters type is invalid");
 
 		assert(impl::isPositive(sizes ...));
 
