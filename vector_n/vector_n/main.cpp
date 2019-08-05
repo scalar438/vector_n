@@ -149,9 +149,10 @@ void testVector3d()
 
 int main()
 {
-	testVector4d();
+	// TODO: write simple tests
+	/*testVector4d();
 	testVector2d();
-	testVector3d();
+	testVector3d();*/
 
 	return 0;
 }
