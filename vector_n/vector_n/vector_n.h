@@ -155,7 +155,7 @@ namespace impl
 		}
 
 	protected:
-		void reset(const std::array<size_t, numDims> &acoefs,
+		void reset(const std::array<size_t, numDims + 1> &acoefs,
 			const std::array<size_t, numDims> &asizes, ElementType *adata)
 		{
 			coefs = acoefs;
@@ -164,7 +164,7 @@ namespace impl
 		}
 
 	private:
-		std::array<size_t, numDims> coefs;
+		std::array<size_t, numDims + 1> coefs;
 		std::array<size_t, numDims> sizes;
 
 		ElementType *data;
@@ -211,7 +211,8 @@ public:
 
 		if(!impl::allPositive(sizes ...)) throw std::invalid_argument("All dimensions must be positive");
 
-		std::array<size_t, numDims> coefs;
+		std::array<size_t, numDims + 1> coefs;
+		coefs[numDims] = 0;
 
 		impl::calcCoefficients(coefs.data(), sizes ...);
 		impl::VectorGeneral<ElementType, numDims>::reset(coefs, {size_t(sizes)...}, data.data());
@@ -221,7 +222,8 @@ public:
 	{
 		data.resize(std::accumulate(sizesDims.begin(), sizesDims.end(), 1, std::multiplies<size_t>()));
 		std::array<size_t, numDims> sizes = sizesDims;
-		std::array<size_t, numDims> coefs;
+		std::array<size_t, numDims + 1> coefs;
+		coefs[numDims] = 0;
 
 		impl::calcCoefficients<numDims>(coefs.data(), sizesDims.data());
 		reset(coefs, sizes, data.data());
