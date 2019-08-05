@@ -89,12 +89,13 @@ namespace impl
 		const static auto value = std::is_integral<Arg>::value;
 	};
 
+	template<class T>
+	class Indexer;
+
 	template<class ElementType, int numDims> class VectorGeneral
 	{
 	public:
-		VectorGeneral(const std::array<size_t, numDims> &adims,
-			const std::array<size_t, numDims> &asizes, ElementType *adata) :
-			dims(adims), sizes(sizes), data(adata) {}
+		VectorGeneral() {}
 
 		template<typename ... Indexes>
 		inline ElementType& operator()(Indexes ... indexes)
@@ -136,21 +137,46 @@ namespace impl
 			return data[getIndex(indexes ...)];
 		}
 
+		template<int ...NumDims> Indexer<ElementType> get_indexer();
+		template<int ...NumDims> Indexer<ElementType> get_indexer() const;
+
+		inline size_t size(const int numberDims) const
+		{
+			assert((numberDims - 1) <= numDims && (numberDims - 1) >= 0 && "Parameters count is invalid");
+
+			return sizes[numberDims - 1];
+		}
+
+		inline const vector_size<numDims>& size() const
+		{
+			return sizes;
+		}
+
+	protected:
+		void reset(const std::array<size_t, numDims> &acoefs,
+			const std::array<size_t, numDims> &asizes, ElementType *adata)
+		{
+			coefs = acoefs;
+			sizes = asizes;
+			data = adata;
+		}
+
+	private:
+		std::array<size_t, numDims> coefs;
+		std::array<size_t, numDims> sizes;
+
+		ElementType *data;
+
 		template<typename ... Indexes>
 		size_t getIndex(Indexes ... indexes)
 		{
 			bool f = impl::checkIndex(sizes.data(), indexes...);
 			assert(f);
 
-			auto index = impl::index(sizes.data(), dims.data(), indexes...);
+			auto index = impl::index(sizes.data(), coefs.data(), indexes...);
 
 			return index;
 		}
-
-		std::array<size_t, numDims> dims;
-		std::array<size_t, numDims> sizes;
-
-		ElementType *data;
 	};
 
 	template<class T>
@@ -166,92 +192,43 @@ namespace impl
 }
 
 template<typename ElementType, size_t numDims>
-class vector_n
+class vector_n : public impl::VectorGeneral<ElementType, numDims>
 {
 public:
-	vector_n() {};
+	vector_n() 
+	{
+		// Do something
+	}
 
 	template<typename ... Sizes>
 	vector_n(Sizes ... sizes)
 		: data(impl::product(sizes ...))
-		, sizes{ size_t(sizes)... }
 	{
 		static_assert(sizeof...(sizes) == numDims, "Parameters count is invalid");
 		static_assert(impl::AllNumeric<Sizes...>::value, "Parameters type is invalid");
 
 		if(!impl::allPositive(sizes ...)) throw std::invalid_argument("All dimensions must be positive");
 
-		impl::calcCoefficients(dims.data(), sizes ...);
+		std::array<size_t, numDims> coefs;
+
+		impl::calcCoefficients(coefs.data(), sizes ...);
+		impl::VectorGeneral<ElementType, numDims>::reset(coefs, {size_t(sizes)...}, data.data());
 	}
 
 	inline void resize(const vector_size <numDims> &sizesDims)
 	{
 		data.resize(std::accumulate(sizesDims.begin(), sizesDims.end(), 1, std::multiplies<size_t>()));
-		sizes = sizesDims;
+		std::array<size_t, numDims> sizes = sizesDims;
+		std::array<size_t, numDims> coefs;
 
-		impl::calcCoefficients<numDims>(dims.data(), sizesDims.data());
+		impl::calcCoefficients<numDims>(coefs.data(), sizesDims.data());
+		reset(coefs, sizes, data.data());
 	}
 
 	template<typename ... Sizes>
 	inline void resize(Sizes ... sizesDims)
 	{
-		static_assert(sizeof...(sizesDims) == numDims, "Parameters count is invalid");
-
-		data.resize(impl::product(sizesDims ...));
-		sizes = { size_t(sizesDims)... };
-		impl::calcCoefficients(dims.data(), sizesDims ...);
-	}
-
-	template<typename ... Indexes>
-	inline ElementType& operator()(Indexes ... indexes)
-	{
-		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
-		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-		
-		return data[getIndex(indexes ...)];
-	}
-
-	template<typename ... Indexes>
-	inline const ElementType& operator()(Indexes ... indexes) const
-	{
-		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
-		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-
-		return data[getIndex(indexes ...)];
-	}
-
-	template<typename ... Indexes>
-	inline ElementType& at(Indexes ... indexes)
-	{
-		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
-		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-
-		if(!impl::checkIndex(indexes...)) throw std::out_of_range("One or more indexes are invalid");
-
-		return data[getIndex(indexes ...)];
-	}
-
-	template<typename ... Indexes>
-	inline const ElementType& at(Indexes ... indexes) const
-	{
-		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
-		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-
-		if(!impl::checkIndex(indexes...)) throw std::out_of_range("One or more indexes are invalid");
-
-		return data[getIndex(indexes ...)];
-	}
-
-	inline const size_t& size(const int numberDims) const
-	{
-		assert((numberDims - 1) <= numDims && (numberDims - 1) >= 0 && "Parameters count is invalid");
-
-		return sizes[numberDims - 1];
-	}
-
-	inline const vector_size<numDims>& size() const
-	{
-		return sizes;
+		resize({sizesDims...});
 	}
 
 	inline void clear()
@@ -285,18 +262,6 @@ public:
 	}
 
 private:
-	template<typename ... Indexes>
-	size_t getIndex(Indexes ... indexes)
-	{
-		bool f = impl::checkIndex(sizes.data(), indexes...);
-		assert(f);
-
-		auto index = impl::index(sizes.data(), dims.data(), indexes...);
-
-		return index;
-	}
 
 	std::vector<ElementType> data;
-	std::array<size_t, numDims> dims;
-	std::array<size_t, numDims> sizes;
 };
