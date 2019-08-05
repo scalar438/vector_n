@@ -24,15 +24,15 @@ namespace impl
 	}
 
 	template<typename FirstIndex, typename ... Indexes>
-	inline static FirstIndex index(const size_t *sizes, const size_t *dims, FirstIndex first)
+	inline static size_t index(const size_t *dims, FirstIndex first)
 	{
 		return *dims * first;
 	}
 
 	template<typename FirstIndex, typename ... Indexes>
-	inline static FirstIndex index(const size_t *sizes, const size_t *dims, FirstIndex first, Indexes ... indexes)
+	inline static size_t index(const size_t *coefs, FirstIndex first, Indexes ... indexes)
 	{
-		return *dims * first + index(sizes, dims + 1, indexes...);
+		return *coefs * first + index(coefs + 1, indexes...);
 	}
 
 	template<typename ...Args>
@@ -46,7 +46,7 @@ namespace impl
 		return positive;
 	};
 
-	inline bool checkIndex(const size_t *sizes){ return true; }
+	inline bool checkIndex(const size_t *){ return true; }
 
 	template<typename FirstIndex, typename ... Indexes>
 	inline static bool checkIndex(const size_t *sizes, FirstIndex first, Indexes ... indexes)
@@ -56,13 +56,13 @@ namespace impl
 	}
 
 	template<typename FirstArg>
-	inline void calcCoefficients(size_t *arr, FirstArg first)
+	inline void calcCoefficients(size_t *arr, FirstArg)
 	{
 		*arr = 1;
 	}
 
 	template<typename FirstArg, typename SecondArg, typename ... Args>
-	inline void calcCoefficients(size_t *arr, FirstArg first, SecondArg second, Args ... args)
+	inline void calcCoefficients(size_t *arr, FirstArg, SecondArg second, Args ... args)
 	{
 		calcCoefficients(arr + 1, second, args...);
 		*arr = *(arr + 1) * second;
@@ -95,7 +95,9 @@ namespace impl
 	template<class ElementType, int numDims> class VectorGeneral
 	{
 	public:
-		VectorGeneral() {}
+		VectorGeneral() : coefs{0}, sizes{0}
+		{
+		}
 
 		template<typename ... Indexes>
 		inline ElementType& operator()(Indexes ... indexes)
@@ -173,7 +175,7 @@ namespace impl
 			bool f = impl::checkIndex(sizes.data(), indexes...);
 			assert(f);
 
-			auto index = impl::index(sizes.data(), coefs.data(), indexes...);
+			auto index = impl::index(coefs.data(), indexes...);
 
 			return index;
 		}
