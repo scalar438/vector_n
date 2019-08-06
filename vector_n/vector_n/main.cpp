@@ -39,7 +39,7 @@ void testVector4d()
 			}
 		}
 	}
-	
+
 	size_t search_time = clock() - start_time_new; // искомое в
 
 	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
@@ -142,13 +142,30 @@ void testVector3d()
 
 	size_t time_vec = clock() - start_time_vec;
 	std::cout << "TIME 3-DIM VECTOR = " << time_vec << std::endl;
-	std::cout << "TOTAL AMOUNT = " << nx * ny *nz << std::endl;
+	std::cout << "TOTAL AMOUNT = " << nx * ny * nz << std::endl;
 	std::cout << std::endl;
+}
 
+bool test_index()
+{
+	vector_n<int, 3> a(3, 4, 5);
+	int val = 0;
+	for (int i1 = 0; i1 < 3; ++i1)
+		for (int i2 = 0; i2 < 4; ++i2)
+			for (int i3 = 0; i3 < 5; ++i3) a(i1, i2, i3) = ++val;
+
+	val = 0;
+
+	for (auto x : a.get_indexer<0, 1, 2>())
+	{
+		if (x != ++val) return false;
+	}
+	return true;
 }
 
 int main()
 {
+	if (!test_index()) throw "WTF";
 	// TODO: write simple tests
 	/*testVector4d();
 	testVector2d();

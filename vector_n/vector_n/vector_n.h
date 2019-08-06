@@ -89,11 +89,93 @@ namespace impl
 		const static auto value = std::is_integral<Arg>::value;
 	};
 
-	template<class T>
+	template<class ElementType, int numDims> class VectorGeneral;
+
+	// STL compatible iterator
+	template<class T, int numCoords>
+	class ElemIter
+	{
+		typedef ElemIter<T, numCoords> ThisType;
+	public:
+		ElemIter(const std::array<size_t, numCoords> &from, 
+			const std::array<size_t, numCoords> &to,
+			const std::array<size_t, numCoords> &cur,
+			VectorGeneral<T, numCoords> data)
+			: m_from(from), m_to(to),
+			  m_current_pos(cur), m_data(data)
+		{
+			for(int i = 0; i != numCoords; ++i)
+			{
+				if(from[i] < to[i]) m_delta[i] = 1;
+				else m_delta[i] = -1;
+			}
+		}
+
+		ThisType operator++()
+		{
+			int i = numCoords - 1;
+
+			while(i != -1)
+			{
+				m_current_pos[i] += m_delta[i];
+				if(m_current_pos[i] == m_to[i])
+				{
+					m_current_pos[i] = m_from[i];
+					--i;
+				}
+				else break;
+			}
+			if(i == -1) m_current_pos = m_to;
+
+			return *this;
+		}
+
+		ThisType &operator++(int)
+		{
+			auto tmp = *this;
+			++*this;
+			return tmp;
+		}
+
+		bool operator==(const ThisType &other) const
+		{
+			return m_from == other.m_from && 
+				m_to == other.m_to && 
+				m_current_pos == other.m_current_pos && 
+				m_data.data == other.m_data.data;
+		}
+
+		bool operator!=(const ThisType &other) const
+		{
+			return !(*this == other);
+		}
+
+		T &operator*()
+		{
+			return deref_impl(std::make_index_sequence<numCoords>());
+		}
+
+	private:
+		std::array<size_t, numCoords> m_from;
+		std::array<size_t, numCoords> m_to;
+		std::array<size_t, numCoords> m_current_pos;
+		std::array<signed char, numCoords> m_delta;
+
+		VectorGeneral<T, numCoords> m_data;
+
+		template<size_t ...I>
+		T &deref_impl(std::index_sequence<I...>)
+		{
+			return m_data(m_current_pos[I]...);
+		}
+	};
+
+	template<class T, int ...IS>
 	class Indexer;
 
 	template<class ElementType, int numDims> class VectorGeneral
 	{
+		friend class ElemIter<ElementType, numDims>;
 	public:
 		VectorGeneral() : coefs{0}, sizes{0}
 		{
@@ -139,7 +221,10 @@ namespace impl
 			return data[getIndex(indexes ...)];
 		}
 
-		template<int ...NumDims> Indexer<ElementType> get_indexer();
+		template<int ...IS> Indexer<ElementType, IS...> get_indexer()
+		{
+			return Indexer<ElementType, IS...>(*this);
+		}
 		template<int ...NumDims> Indexer<ElementType> get_indexer() const;
 
 		inline size_t size(const int numberDims) const
@@ -181,15 +266,36 @@ namespace impl
 		}
 	};
 
-	template<class T>
+	// IS - Index Sequense
+	template<class T, int ... IS>
 	class Indexer
 	{
-		Indexer(T *data);
-		void begin(){}
+	public:
+		Indexer(VectorGeneral<T, sizeof...(IS)> &source)
+			: m_source(source)
+		{}
 
-		void end(){}
+		ElemIter<T, sizeof...(IS)> begin()
+		{
+			std::array<size_t, sizeof...(IS)> from;
+			from.fill(0);
+			std::array<size_t, sizeof...(IS)> to = m_source.size();
+			ElemIter<T, sizeof...(IS)> it(from, to, from, m_source);
+			return it;
+		}
 
-		void rev();
+		ElemIter<T, sizeof...(IS)> end()
+		{
+			std::array<size_t, sizeof...(IS)> from;
+			from.fill(0);
+			std::array<size_t, sizeof...(IS)> to = m_source.size();
+			ElemIter<T, sizeof...(IS)> it(from, to, to, m_source);
+			return it;
+		}
+
+		Indexer &rev(int) {return *this;}
+	private:
+		VectorGeneral<T, sizeof...(IS)> &m_source;
 	};
 }
 
