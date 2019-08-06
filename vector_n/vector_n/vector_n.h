@@ -52,7 +52,7 @@ namespace impl
 	inline static bool checkIndex(const size_t *sizes, FirstIndex first, Indexes ... indexes)
 	{
 		// May be I should to use additional checks for signed types because of UB
-		return first < size_t(*sizes) && checkIndex(sizes + 1, indexes...);
+		return size_t(first) < *sizes && checkIndex(sizes + 1, indexes...);
 	}
 
 	template<typename FirstArg>
