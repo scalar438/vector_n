@@ -289,34 +289,35 @@ namespace impl
 	template<class T, int ... IS>
 	class Indexer
 	{
+		constexpr static int N = sizeof...(IS);
 	public:
-		Indexer(VectorGeneral<T, sizeof...(IS)> &source)
+		Indexer(VectorGeneral<T, N> &source)
 			: m_source(source)
 		{}
 
-		ElemIter<T, sizeof...(IS)> begin()
+		ElemIter<T, N> begin()
 		{
-			std::array<size_t, sizeof...(IS)> from;
+			std::array<size_t, N> from;
 			from.fill(0);
-			std::array<size_t, sizeof...(IS)> to = m_source.size();
-			ElemIter<T, sizeof...(IS)> it(from, to, from, m_source);
+			std::array<size_t, N> to = m_source.size();
+			ElemIter<T, N> it(from, to, from, m_source);
 			return it;
 		}
 
 		ElemIter<T, sizeof...(IS)> end()
 		{
-			std::array<size_t, sizeof...(IS)> from;
+			std::array<size_t, N> from;
 			from.fill(0);
-			std::array<size_t, sizeof...(IS)> to = m_source.size();
-			ElemIter<T, sizeof...(IS)> it(from, to, to, m_source);
+			std::array<size_t, N> to = m_source.size();
+			ElemIter<T, N> it(from, to, to, m_source);
 			return it;
 		}
 
 		Indexer &rev(int) {return *this;}
 	private:
-		VectorGeneral<T, sizeof...(IS)> &m_source;
+		VectorGeneral<T, N> &m_source;
 
-		static_assert(valid_index_set<sizeof...(IS), IS...>);
+		static_assert(valid_index_set<N, IS...>);
 	};
 }
 
