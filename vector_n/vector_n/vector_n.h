@@ -265,6 +265,25 @@ namespace impl
 			return index;
 		}
 	};
+	
+	template <int V, int... Tail> constexpr bool has_v = false;
+	template <int V, int F, int... Tail>
+	constexpr bool has_v<V, F, Tail...> = (V == F) || has_v<V, Tail...>;
+
+	template <int... I> constexpr bool distinct = true;
+	template <int F, int S, int... Tail>
+	constexpr bool distinct<F, S, Tail...> = !has_v<F, S, Tail...> && distinct<S, Tail...>;
+
+	template <int I, int... Tail> constexpr int min = I;
+	template <int F, int S, int... Tail>
+	constexpr int min<F, S, Tail...> = min<(F < S ? F : S), Tail...>;
+
+	template <int I, int... Tail> constexpr int max = I;
+	template <int F, int S, int... Tail>
+	constexpr int max<F, S, Tail...> = max<(F > S ? F : S), Tail...>;
+
+	template<int N, int ...I> constexpr bool valid_index_set = min<I...> >= 0 && max<I...> < N && distinct<I...>;
+
 
 	// IS - Index Sequense
 	template<class T, int ... IS>
@@ -296,6 +315,8 @@ namespace impl
 		Indexer &rev(int) {return *this;}
 	private:
 		VectorGeneral<T, sizeof...(IS)> &m_source;
+
+		static_assert(valid_index_set<sizeof...(IS), IS...>);
 	};
 }
 
