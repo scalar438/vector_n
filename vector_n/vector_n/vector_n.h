@@ -24,9 +24,9 @@ namespace impl
 	}
 
 	template<typename FirstIndex, typename ... Indexes>
-	inline static size_t index(const size_t *dims, FirstIndex first)
+	inline static size_t index(const size_t *coefs, FirstIndex first)
 	{
-		return *dims * first;
+		return *coefs * first + *(coefs + 1);
 	}
 
 	template<typename FirstIndex, typename ... Indexes>
@@ -173,9 +173,15 @@ namespace impl
 	template<class T, int ...IS>
 	class Indexer;
 
+	template<class ElementType, int numDims> class VectorGeneral;
+
 	template<class ElementType, int numDims> class VectorGeneral
 	{
 		friend class ElemIter<ElementType, numDims>;
+
+		template<class T, int ... IS>
+		friend class Indexer;
+
 	public:
 		VectorGeneral() : coefs{0}, sizes{0}
 		{
@@ -299,17 +305,32 @@ namespace impl
 		{
 			std::array<size_t, N> from;
 			from.fill(0);
+			
+			auto new_data = m_source;
+			new_data.coefs = {new_data.coefs[IS]..., new_data.coefs[N]};
+			new_data.sizes = {new_data.sizes[IS]...};
+
 			std::array<size_t, N> to = m_source.size();
-			ElemIter<T, N> it(from, to, from, m_source);
+
+			ElemIter<T, N> it(from, new_data.size(), // From and to
+				from, // current position
+				new_data);
 			return it;
 		}
 
-		ElemIter<T, sizeof...(IS)> end()
+		ElemIter<T, N> end()
 		{
 			std::array<size_t, N> from;
 			from.fill(0);
+
+			auto new_data = m_source;
+			new_data.coefs = {new_data.coefs[IS]..., new_data.coefs[N]};
+			new_data.sizes = {new_data.sizes[IS]...};
+
 			std::array<size_t, N> to = m_source.size();
-			ElemIter<T, N> it(from, to, to, m_source);
+			ElemIter<T, N> it(from, new_data.size(), // From and to
+				{to[IS]...}, // Current position
+				new_data);
 			return it;
 		}
 
