@@ -169,14 +169,14 @@ bool test_index2()
 {
 	vector_n<int, 3> a(3, 4, 5);
 	int val = 0;
-	for (int i1 = 0; i1 < 3; ++i1)
-		for (int i3 = 0; i3 < 5; ++i3)
+	for (int i3 = 0; i3 < 5; ++i3)
+		for (int i1 = 0; i1 < 3; ++i1)
 			for (int i2 = 0; i2 < 4; ++i2) a(i1, i2, i3) = val++;
 
 	int val_old = val;
 	val = 0;
 
-	for (auto x : a.get_indexer<0, 2, 1>())
+	for (auto x : a.get_indexer<2, 0, 1>())
 	{
 		if (x != val++) return false;
 		if (val_old < val) return false;
