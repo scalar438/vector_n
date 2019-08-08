@@ -173,8 +173,6 @@ namespace impl
 	template<class T, int ...IS>
 	class Indexer;
 
-	template<class ElementType, int numDims> class VectorGeneral;
-
 	template<class ElementType, int numDims> class VectorGeneral
 	{
 		friend class ElemIter<ElementType, numDims>;
