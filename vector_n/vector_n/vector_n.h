@@ -338,7 +338,7 @@ namespace impl
 	private:
 		VectorGeneral<T, N> &m_source;
 
-		static_assert(valid_index_set<N, IS...>);
+		static_assert(valid_index_set<N, IS...>, "Index set must be a permutation");
 	};
 }
 
