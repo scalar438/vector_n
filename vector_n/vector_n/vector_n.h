@@ -139,10 +139,10 @@ namespace impl
 
 		bool operator==(const ThisType &other) const
 		{
-			return m_from == other.m_from && 
-				m_to == other.m_to && 
-				m_current_pos == other.m_current_pos && 
-				m_data.data == other.m_data.data;
+			return m_current_pos == other.m_current_pos && 
+				m_data.data == other.m_data.data &&
+				m_from == other.m_from && 
+				m_to == other.m_to;
 		}
 
 		bool operator!=(const ThisType &other) const
