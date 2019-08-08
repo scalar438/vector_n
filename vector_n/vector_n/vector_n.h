@@ -89,7 +89,7 @@ namespace impl
 		const static auto value = std::is_integral<Arg>::value;
 	};
 
-	template<class ElementType, int numDims> class VectorGeneral;
+	template<class ElementType, int numDims> class VectorSlice;
 
 	// STL compatible iterator
 	template<class T, int numCoords>
@@ -100,7 +100,7 @@ namespace impl
 		ElemIter(const std::array<size_t, numCoords> &from, 
 			const std::array<size_t, numCoords> &to,
 			const std::array<size_t, numCoords> &cur,
-			VectorGeneral<T, numCoords> data)
+			VectorSlice<T, numCoords> data)
 			: m_from(from), m_to(to),
 			  m_current_pos(cur), m_data(data)
 		{
@@ -161,7 +161,7 @@ namespace impl
 		std::array<size_t, numCoords> m_current_pos;
 		std::array<signed char, numCoords> m_delta;
 
-		VectorGeneral<T, numCoords> m_data;
+		VectorSlice<T, numCoords> m_data;
 
 		template<size_t ...I>
 		T &deref_impl(std::index_sequence<I...>)
@@ -173,9 +173,7 @@ namespace impl
 	template<class T, int ...IS>
 	class Indexer;
 
-	template<class ElementType, int numDims> class VectorGeneral;
-
-	template<class ElementType, int numDims> class VectorGeneral
+	template<class ElementType, int numDims> class VectorSlice
 	{
 		friend class ElemIter<ElementType, numDims>;
 
@@ -183,7 +181,7 @@ namespace impl
 		friend class Indexer;
 
 	public:
-		VectorGeneral() : coefs{0}, sizes{0}
+		VectorSlice() : coefs{0}, sizes{0}
 		{
 		}
 
@@ -297,7 +295,7 @@ namespace impl
 	{
 		constexpr static int N = sizeof...(IS);
 	public:
-		Indexer(VectorGeneral<T, N> &source)
+		Indexer(VectorSlice<T, N> &source)
 			: m_source(source)
 		{}
 
@@ -336,14 +334,14 @@ namespace impl
 
 		Indexer &rev(int) {return *this;}
 	private:
-		VectorGeneral<T, N> &m_source;
+		VectorSlice<T, N> &m_source;
 
 		static_assert(valid_index_set<N, IS...>);
 	};
 }
 
 template<typename ElementType, size_t numDims>
-class vector_n : public impl::VectorGeneral<ElementType, numDims>
+class vector_n : public impl::VectorSlice<ElementType, numDims>
 {
 public:
 	vector_n() 
@@ -364,7 +362,7 @@ public:
 		coefs[numDims] = 0;
 
 		impl::calcCoefficients(coefs.data(), sizes ...);
-		impl::VectorGeneral<ElementType, numDims>::reset(coefs, {size_t(sizes)...}, data.data());
+		impl::VectorSlice<ElementType, numDims>::reset(coefs, {size_t(sizes)...}, data.data());
 	}
 
 	inline void resize(const vector_size <numDims> &sizesDims)
