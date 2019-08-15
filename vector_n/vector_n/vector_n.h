@@ -35,17 +35,16 @@ namespace impl
 		return *dims * first + index(sizes, dims + 1, indexes...);
 	}
 
-	template<typename FirstIndex, typename ... Indexes>
-	inline static void checkIndex(const size_t *size, FirstIndex first)
+	template<typename FirstIndex>
+	inline static bool checkIndex(const size_t *sizes, FirstIndex first)
 	{
-		assert(size_t(*size) < *size && "Index is invalid.");
+		return (size_t(first) < *sizes);
 	}
 
 	template<typename FirstIndex, typename ... Indexes>
-	inline static void checkIndex(const size_t *sizes, FirstIndex first, Indexes ... indexes)
+	inline static bool checkIndex(const size_t *sizes, FirstIndex first, Indexes ... indexes)
 	{
-		checkIndex(sizes, first);
-		checkIndex(sizes + 1, indexes...);
+		return checkIndex(sizes, first) && checkIndex(sizes + 1, indexes...);
 	}
 
 	template<typename FirstArg>
@@ -213,7 +212,7 @@ private:
 	template<typename ... Indexes>
 	size_t getIndex(Indexes ... indexes)
 	{
-		impl::checkIndex(sizes.data(), indexes...);
+		assert(impl::checkIndex(sizes.data(), indexes...) && "Indexes is invalid.");
 
 		auto index = impl::index(sizes.data(), dims.data(), indexes...);
 
