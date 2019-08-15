@@ -208,6 +208,12 @@ public:
 		return data;
 	}
 
+	template<typename ... Indexes>
+	inline bool existData(Indexes ... indexes) const
+	{
+		return impl::checkIndex(sizes.data(), indexes...);
+	}
+
 private:
 	template<typename ... Indexes>
 	size_t getIndex(Indexes ... indexes)
