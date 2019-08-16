@@ -35,16 +35,24 @@ namespace impl
 		return *dims * first + index(sizes, dims + 1, indexes...);
 	}
 
-	template<typename FirstIndex>
-	inline static bool checkIndex(const size_t *sizes, FirstIndex first)
+	template<typename ...Args>
+	void ignore(Args ...) { ; }
+
+	template<typename ...Args>
+	bool allPositive(Args ... args)
 	{
-		return (size_t(first) < *sizes);
-	}
+		bool positive(true);
+		ignore(positive = positive && args >= 0 ...);
+		return positive;
+	};
+
+	inline bool checkIndex(const size_t *sizes){ return true; }
 
 	template<typename FirstIndex, typename ... Indexes>
 	inline static bool checkIndex(const size_t *sizes, FirstIndex first, Indexes ... indexes)
 	{
-		return checkIndex(sizes, first) && checkIndex(sizes + 1, indexes...);
+		// May be I should to use additional checks for signed types because of UB
+		return first < size_t(*sizes) && checkIndex(sizes + 1, indexes...);
 	}
 
 	template<typename FirstArg>
@@ -80,17 +88,6 @@ namespace impl
 	{
 		const static auto value = std::is_integral<Arg>::value;
 	};
-
-	template<typename ...Args>
-	void ignore(Args ...) { ; }
-
-	template<typename ...Args>
-	bool isPositive(Args ... args)
-	{
-		bool positive(true);
-		ignore(positive = positive && args >= 0 ...);
-		return positive;
-	};
 }
 
 template<typename ElementType, size_t numDims>
@@ -107,7 +104,7 @@ public:
 		static_assert(sizeof...(sizes) == numDims, "Parameters count is invalid");
 		static_assert(impl::AllNumeric<Sizes...>::value, "Parameters type is invalid");
 
-		assert(impl::isPositive(sizes ...));
+		if(!impl::allPositive(sizes ...)) throw std::invalid_argument("All dimensions must be positive");
 
 		impl::calcCoefficients(dims.data(), sizes ...);
 	}
@@ -135,7 +132,7 @@ public:
 	{
 		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
 		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-
+		
 		return data[getIndex(indexes ...)];
 	}
 
@@ -154,6 +151,8 @@ public:
 		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
 		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
 
+		if(!impl::checkIndex(sizes.data(), indexes...)) throw std::out_of_range("One or more indexes are invalid");
+
 		return data[getIndex(indexes ...)];
 	}
 
@@ -162,6 +161,8 @@ public:
 	{
 		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
 		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+		if(!impl::checkIndex(sizes.data(), indexes...)) throw std::out_of_range("One or more indexes are invalid");
 
 		return data[getIndex(indexes ...)];
 	}
@@ -222,8 +223,6 @@ private:
 
 		auto index = impl::index(sizes.data(), dims.data(), indexes...);
 
-		assert(size_t(index) < data.size() && "Parameters count dimensional is invalid");
-
 		return index;
 	}
 
@@ -231,4 +230,3 @@ private:
 	std::array<size_t, numDims> dims;
 	std::array<size_t, numDims> sizes;
 };
-
