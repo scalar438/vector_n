@@ -39,7 +39,7 @@ void testVector4d()
 			}
 		}
 	}
-
+	
 	size_t search_time = clock() - start_time_new; // искомое в
 
 	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;

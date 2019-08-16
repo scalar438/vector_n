@@ -174,7 +174,7 @@ namespace impl
 	class Indexer;
 
 
-	template<class ElementType, int numDims> class VectorSlice	{
+	template<class ElementType, int numDims> class VectorSlice {
 		friend class ElemIter<ElementType, numDims>;
 
 		template<class T, int ... IS>
@@ -261,8 +261,7 @@ namespace impl
 		template<typename ... Indexes>
 		size_t getIndex(Indexes ... indexes)
 		{
-			bool f = impl::checkIndex(sizes.data(), indexes...);
-			assert(f);
+			assert(impl::checkIndex(sizes.data(), indexes...) && "Indexes is invalid.");
 
 			auto index = impl::index(coefs.data(), indexes...);
 
@@ -343,6 +342,7 @@ namespace impl
 template<typename ElementType, size_t numDims>
 class vector_n : public impl::VectorSlice<ElementType, numDims>
 {
+	typedef impl::VectorSlice<ElementType, numDims> Base;
 public:
 	vector_n() 
 	{
@@ -410,6 +410,12 @@ public:
 	inline std::vector<ElementType>& getData()
 	{
 		return data;
+	}
+
+	template<typename ... Indexes>
+	inline bool existData(Indexes ... indexes) const
+	{
+		return impl::checkIndex(Base::sizes.data(), indexes...);
 	}
 
 private:
