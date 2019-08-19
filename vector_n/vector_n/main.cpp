@@ -39,7 +39,7 @@ void testVector4d()
 			}
 		}
 	}
-	
+
 	size_t search_time = clock() - start_time_new; // искомое в
 
 	std::cout << "TIME 1-DIM VECTOR = " << search_time << std::endl;
@@ -184,9 +184,67 @@ bool test_index2()
 	return true;
 }
 
+bool test_fix1()
+{
+	vector_n<int, 2> a(3, 4);
+
+	{
+		int tmp = 0;
+		for (auto& x : a.get_indexer<0, 1>())
+		{
+			x = tmp++;
+		}
+	}
+
+	auto f = a.fix<0>(2);
+	for (int i = 0; i < 4; ++i)
+	{
+		if (a(2, i) != f(i))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool test_fix2()
+{
+	vector_n<int, 4> a(3, 4, 5, 6);
+
+	{
+		int tmp = 0;
+		for (auto& x : a.get_indexer<0, 1, 2, 3>())
+		{
+			x = tmp++;
+		}
+	}
+
+	auto f = a.fix<1, 2>(3, 4);
+	for (int i = 0; i < 3; ++i)
+	{
+		for (int j = 0; j < 6; ++j)
+		{
+			if (a(i, 3, 4, j) != f(i, j))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 int main()
 {
-	if (!test_index() || !test_index2()) return -1;
+	auto tests = {test_index, test_index2, test_fix1, test_fix2};
+	for (auto test : tests)
+	{
+		if (!test())
+		{
+			return -1;
+		}
+	}
 	// TODO: write simple tests
 	/*testVector4d();
 	testVector2d();
