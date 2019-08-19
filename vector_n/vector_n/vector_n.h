@@ -173,9 +173,39 @@ namespace impl
 	template<class T, int ...IS>
 	class Indexer;
 
+	template <int V, int... Tail> constexpr bool has_v = false;
+	template <int V, int F, int... Tail>
+	constexpr bool has_v<V, F, Tail...> = (V == F) || has_v<V, Tail...>;
+
+	template <int... I> constexpr bool distinct = true;
+	template <int F, int S, int... Tail>
+	constexpr bool distinct<F, S, Tail...> = !has_v<F, S, Tail...> && distinct<S, Tail...>;
+
+	template <int I, int... Tail> constexpr int min = I;
+	template <int F, int S, int... Tail>
+	constexpr int min<F, S, Tail...> = min<(F < S ? F : S), Tail...>;
+
+	template <int I, int... Tail> constexpr int max = I;
+	template <int F, int S, int... Tail>
+	constexpr int max<F, S, Tail...> = max<(F > S ? F : S), Tail...>;
+
+	template<int N, int ...I> constexpr bool valid_index_set = min<I...> >= 0 && max<I...> < N && distinct<I...>;
+
+	template<int...Nums> bool has_v_fun(int a)
+	{
+		for(int x : {Nums...})
+		{
+			if(x == a) return true;
+		}
+		return false;
+	}
+
 
 	template<class ElementType, int numDims> class VectorSlice {
 		friend class ElemIter<ElementType, numDims>;
+		
+		template<class T, int N>
+		friend class VectorSlice;
 
 		template<class T, int ... IS>
 		friend class Indexer;
@@ -243,6 +273,46 @@ namespace impl
 			return sizes;
 		}
 
+		template<int...Indexes, class ...Args>
+		VectorSlice<ElementType, numDims - sizeof...(Indexes)> fix(Args ...c_index)
+		{
+			const int new_dim = numDims - sizeof...(Indexes);
+			static_assert(sizeof...(Indexes) == sizeof...(Args), "Indexes and template parameters count do not match");
+			static_assert(valid_index_set<numDims, Indexes...>, "Invalid index set");
+			static_assert(AllNumeric<Args...>::value, "Invalid arguments");
+
+			std::array<size_t, sizeof...(Indexes)> template_index{Indexes...};
+			std::array<size_t, sizeof...(Indexes)> args{size_t(c_index)...};
+			
+			std::array<size_t, new_dim + 1> new_coefs;
+			new_coefs[new_dim] = coefs[numDims];
+
+			std::array<size_t, new_dim> new_sizes;
+			for(int i = 0, j = 0; i < numDims; ++i)
+			{
+				if(!has_v_fun<Indexes...>(i))
+				{
+					new_sizes[j] = sizes[i];
+					new_coefs[j] = coefs[i];
+					++j;
+				}
+			}
+			for(size_t i = 0; i != sizeof...(Indexes); ++i)
+			{
+				new_coefs[new_dim] += coefs[template_index[i]] * args[i];
+			}
+
+			VectorSlice<ElementType, new_dim> res;
+			res.reset(new_coefs, new_sizes, data);
+			return res;
+		}
+
+	/*	template<int...IndexNumber>
+		VectorSlice<T, numDims - sizeof...(IndexNumber)> slice() const
+		{
+
+		}*/
+
 	protected:
 		void reset(const std::array<size_t, numDims + 1> &acoefs,
 			const std::array<size_t, numDims> &asizes, ElementType *adata)
@@ -268,25 +338,6 @@ namespace impl
 			return index;
 		}
 	};
-	
-	template <int V, int... Tail> constexpr bool has_v = false;
-	template <int V, int F, int... Tail>
-	constexpr bool has_v<V, F, Tail...> = (V == F) || has_v<V, Tail...>;
-
-	template <int... I> constexpr bool distinct = true;
-	template <int F, int S, int... Tail>
-	constexpr bool distinct<F, S, Tail...> = !has_v<F, S, Tail...> && distinct<S, Tail...>;
-
-	template <int I, int... Tail> constexpr int min = I;
-	template <int F, int S, int... Tail>
-	constexpr int min<F, S, Tail...> = min<(F < S ? F : S), Tail...>;
-
-	template <int I, int... Tail> constexpr int max = I;
-	template <int F, int S, int... Tail>
-	constexpr int max<F, S, Tail...> = max<(F > S ? F : S), Tail...>;
-
-	template<int N, int ...I> constexpr bool valid_index_set = min<I...> >= 0 && max<I...> < N && distinct<I...>;
-
 
 	// IS - Index Sequense
 	template<class T, int ... IS>
