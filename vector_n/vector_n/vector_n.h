@@ -299,6 +299,7 @@ namespace impl
 			}
 			for(size_t i = 0; i != sizeof...(Indexes); ++i)
 			{
+				if(args[i] >= sizes[template_index[i]]) throw std::invalid_argument("One or more index too large");
 				new_coefs[new_dim] += coefs[template_index[i]] * args[i];
 			}
 
