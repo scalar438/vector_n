@@ -146,7 +146,7 @@ void testVector3d()
 	std::cout << std::endl;
 }
 
-bool test_index()
+bool test_index_full_1()
 {
 	vector_n<int, 3> a(3, 4, 5);
 	int val = 0;
@@ -165,7 +165,7 @@ bool test_index()
 	return true;
 }
 
-bool test_index2()
+bool test_index_full_2()
 {
 	vector_n<int, 3> a(3, 4, 5);
 	int val = 0;
@@ -237,7 +237,7 @@ bool test_fix2()
 
 int main()
 {
-	auto tests = {test_index, test_index2, test_fix1, test_fix2};
+	auto tests = {test_index_full_1, test_index_full_2, test_fix1, test_fix2};
 	for (auto test : tests)
 	{
 		if (!test())
