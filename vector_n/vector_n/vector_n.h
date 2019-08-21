@@ -111,7 +111,7 @@ namespace impl
 			}
 		}
 
-		ThisType operator++()
+		ThisType &operator++()
 		{
 			int i = numCoords - 1;
 
@@ -130,7 +130,7 @@ namespace impl
 			return *this;
 		}
 
-		ThisType &operator++(int)
+		ThisType operator++(int)
 		{
 			auto tmp = *this;
 			++*this;
