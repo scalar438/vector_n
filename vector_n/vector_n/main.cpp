@@ -159,7 +159,7 @@ bool test_index_full_1()
 
 	for (auto x : a.get_indexer<0, 1, 2>())
 	{
-		if (x != val++) return false;
+		if (x.value != val++) return false;
 		if (val_old < val) return false;
 	}
 	return true;
@@ -178,7 +178,7 @@ bool test_index_full_2()
 
 	for (auto x : a.get_indexer<2, 0, 1>())
 	{
-		if (x != val++) return false;
+		if (x.value != val++) return false;
 		if (val_old < val) return false;
 	}
 	return true;
@@ -190,9 +190,12 @@ bool test_fix1()
 
 	{
 		int tmp = 0;
-		for (auto& x : a.get_indexer<0, 1>())
+		for (int i = 0; i < 3; ++i)
 		{
-			x = tmp++;
+			for (int j = 0; j < 4; ++j)
+			{
+				a(i, j) = tmp++;
+			}
 		}
 	}
 
@@ -214,9 +217,18 @@ bool test_fix2()
 
 	{
 		int tmp = 0;
-		for (auto& x : a.get_indexer<0, 1, 2, 3>())
+		for (int i1 = 0; i1 < 3; ++i1)
 		{
-			x = tmp++;
+			for (int i2 = 0; i2 < 4; ++i2)
+			{
+				for (int i3 = 0; i3 < 5; ++i3)
+				{
+					for (int i4 = 0; i4 < 6; ++i4)
+					{
+						a(i1, i2, i3, i4) = tmp++;
+					}
+				}
+			}
 		}
 	}
 
@@ -242,9 +254,11 @@ int main()
 	{
 		if (!test())
 		{
+			std::cout << "Error\n";
 			return -1;
 		}
 	}
+	std::cout << "Ok\n";
 	// TODO: write simple tests
 	/*testVector4d();
 	testVector2d();

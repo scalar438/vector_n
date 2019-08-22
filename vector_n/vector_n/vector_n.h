@@ -90,6 +90,20 @@ namespace impl
 	};
 
 	template<class ElementType, int numDims> class VectorSlice;
+	
+	template<class ElementType, int numCoords, int numDimsSource> struct DerefIter
+	{
+		std::array<size_t, numCoords> index;
+		VectorSlice<ElementType, numDimsSource> value;
+	};
+
+	template<class ElementType, int numCoords> struct DerefIter<ElementType, numCoords, numCoords>
+	{
+		DerefIter(const std::array<size_t, numCoords> &i, const ElementType &v)
+			: index(i), value(v) {}
+		const std::array<size_t, numCoords> &index;
+		const ElementType &value;
+	};
 
 	// STL compatible iterator
 	template<class T, int numCoords>
@@ -150,9 +164,9 @@ namespace impl
 			return !(*this == other);
 		}
 
-		T &operator*()
+		DerefIter<T, numCoords, numCoords> operator*()
 		{
-			return deref_impl(std::make_index_sequence<numCoords>());
+			return DerefIter<T, numCoords, numCoords>(m_current_pos, deref_impl(std::make_index_sequence<numCoords>()));
 		}
 
 	private:
