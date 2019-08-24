@@ -23,6 +23,11 @@ namespace impl
 		return product(args...) * first;
 	}
 
+	size_t index(const size_t *coefs)
+	{
+		return *coefs;
+	}
+
 	template<typename FirstIndex, typename ... Indexes>
 	inline static size_t index(const size_t *coefs, FirstIndex first)
 	{
@@ -79,14 +84,14 @@ namespace impl
 		}
 	}
 
-	template<class First, class ...Args> struct AllNumeric
+	template<class ...Args> struct AllNumeric
 	{
-		const static auto value = std::is_integral<First>::value && AllNumeric<Args...>::value;
+		const static auto value = true;
 	};
 
-	template<class Arg> struct AllNumeric<Arg>
+	template<class First, class ...Args> struct AllNumeric<First, Args...>
 	{
-		const static auto value = std::is_integral<Arg>::value;
+		const static auto value = std::is_integral<First>::value && AllNumeric<Args...>::value;
 	};
 
 	template<class ElementType, int numDims> class VectorSlice;
@@ -111,6 +116,7 @@ namespace impl
 	{
 		typedef ElemIter<T, numCoords> ThisType;
 	public:
+
 		ElemIter(const std::array<size_t, numCoords> &from, 
 			const std::array<size_t, numCoords> &to,
 			const std::array<size_t, numCoords> &cur,
@@ -178,7 +184,7 @@ namespace impl
 		VectorSlice<T, numCoords> m_data;
 
 		template<size_t ...I>
-		T &deref_impl(std::index_sequence<I...>)
+		inline T &deref_impl(std::index_sequence<I...>)
 		{
 			return m_data(m_current_pos[I]...);
 		}

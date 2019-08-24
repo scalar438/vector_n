@@ -247,9 +247,28 @@ bool test_fix2()
 	return true;
 }
 
+bool test_fix_full()
+{
+	vector_n<int, 3> a(3, 4, 5);
+	{
+		int val = 0;
+		for (int i1 = 0; i1 < 3; ++i1)
+			for (int i2 = 0; i2 < 4; ++i2)
+				for (int i3 = 0; i3 < 5; ++i3) a(i1, i2, i3) = val++;
+	}
+	for (int i1 = 0; i1 < 3; ++i1)
+		for (int i2 = 0; i2 < 4; ++i2)
+			for (int i3 = 0; i3 < 5; ++i3)
+			{
+				auto f = a.fix<1, 0, 2>(i2, i1, i3);
+				if (a(i1, i2, i3) != f()) return false;
+			}
+	return true;
+}
+
 int main()
 {
-	auto tests = {test_index_full_1, test_index_full_2, test_fix1, test_fix2};
+	auto tests = {test_index_full_1, test_index_full_2, test_fix1, test_fix2, test_fix_full};
 	for (auto test : tests)
 	{
 		if (!test())
