@@ -184,7 +184,7 @@ namespace impl
 		}
 	};
 
-	template<class T, int ...IS>
+	template<class T, int N, int ...IS>
 	class Indexer;
 
 	template <int V, int... Tail> constexpr bool has_v = false;
@@ -221,7 +221,7 @@ namespace impl
 		template<class T, int N>
 		friend class VectorSlice;
 
-		template<class T, int ... IS>
+		template<class T, int N, int ... IS>
 		friend class Indexer;
 
 	public:
@@ -269,11 +269,15 @@ namespace impl
 			return data[getIndex(indexes ...)];
 		}
 
-		template<int ...IS> Indexer<ElementType, IS...> get_indexer()
+		template<int ...IS> Indexer<ElementType, numDims, IS...> get_indexer_mut()
 		{
-			return Indexer<ElementType, IS...>(*this);
+			return Indexer<ElementType, numDims, IS...>(*this);
 		}
-		template<int ...NumDims> Indexer<ElementType> get_indexer() const;
+
+		template<int ...IS> Indexer<const ElementType, numDims, IS...> get_indexer() const
+		{
+			return Indexer<const ElementType, numDims, IS...>(*this);
+		}
 
 		inline size_t size(const int numberDims) const
 		{
@@ -355,16 +359,18 @@ namespace impl
 	};
 
 	// IS - Index Sequense
-	template<class T, int ... IS>
+	template<class T, int N, int ... IS>
 	class Indexer
 	{
-		constexpr static int N = sizeof...(IS);
 	public:
-		Indexer(VectorSlice<T, N> &source)
+		typedef std::remove_const_t<T> ClearType;
+		typedef std::conditional_t<std::is_const_v<T>, const VectorSlice<ClearType, N>, VectorSlice<T, N>> SourceType;
+
+		Indexer(SourceType &source)
 			: m_source(source)
 		{}
 
-		ElemIter<T, N> begin()
+		ElemIter<ClearType, N> begin()
 		{
 			std::array<size_t, N> from;
 			from.fill(0);
@@ -375,13 +381,13 @@ namespace impl
 
 			std::array<size_t, N> to = m_source.size();
 
-			ElemIter<T, N> it(from, new_data.size(), // From and to
+			ElemIter<ClearType, N> it(from, new_data.size(), // From and to
 				from, // current position
 				new_data);
 			return it;
 		}
 
-		ElemIter<T, N> end()
+		ElemIter<ClearType, N> end()
 		{
 			std::array<size_t, N> from;
 			from.fill(0);
@@ -391,7 +397,7 @@ namespace impl
 			new_data.sizes = {new_data.sizes[IS]...};
 
 			std::array<size_t, N> to = m_source.size();
-			ElemIter<T, N> it(from, new_data.size(), // From and to
+			ElemIter<ClearType, N> it(from, new_data.size(), // From and to
 				{to[IS]...}, // Current position
 				new_data);
 			return it;
@@ -399,7 +405,7 @@ namespace impl
 
 		Indexer &rev(int) {return *this;}
 	private:
-		VectorSlice<T, N> &m_source;
+		SourceType &m_source;
 
 		static_assert(valid_index_set<N, IS...>, "Index set must be a permutation");
 	};
