@@ -184,7 +184,7 @@ bool test_index_full_2()
 	return true;
 }
 
-bool test_index_partial()
+bool test_index_partial1()
 {
 	vector_n<int, 4> a(3, 4, 5, 6);
 	{
@@ -202,6 +202,34 @@ bool test_index_partial()
 			for (int j = 0; j < 6; ++j)
 			{
 				if (x.value(i, j) != a(x.index[1], i, x.index[0], j))
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+bool test_index_partial2()
+{
+	vector_n<int, 5> a(3, 4, 5, 6, 7);
+	{
+		auto tmp = &a(0, 0, 0, 0, 0);
+		for (int i = 0; i < 3 * 4 * 5 * 6 * 7; ++i)
+		{
+			tmp[i] = i;
+		}
+	}
+
+	for (auto x : a.get_indexer<0, 3>())  // 0 and 3
+	{
+		for (auto y : x.value.get_indexer<2, 0>()) // 4 and 1
+		{
+			for (auto z : y.value.get_indexer<0>()) // 2
+			{
+				if (a(x.index[0], y.index[1], z.index[0], x.index[1], y.index[0]) != z.value)
 				{
 					return false;
 				}
@@ -296,7 +324,8 @@ bool test_fix_full()
 
 int main()
 {
-	auto tests = {test_index_full_1, test_index_full_2, test_index_partial,
+	auto tests = {test_index_full_1, test_index_full_2,
+		test_index_partial1, test_index_partial2,
 		test_fix1, test_fix2, test_fix_full};
 	for (auto test : tests)
 	{
