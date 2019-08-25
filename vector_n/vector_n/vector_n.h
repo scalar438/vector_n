@@ -95,14 +95,22 @@ namespace impl
 	};
 
 	template<class ElementType, int numDims> class VectorSlice;
-	
-	template<class ElementType, int numCoords, int numDimsSource> struct DerefIter
+
+	template<class ElementType, int numDims>
+	using MoveOutConst = std::conditional_t<std::is_const_v<ElementType>, 
+		const VectorSlice<std::remove_const_t<ElementType>, numDims>,
+		VectorSlice<ElementType, numDims>>;
+
+	template<class ElementType, int numCoords, int numDimsSlice> struct DerefIter
 	{
-		std::array<size_t, numCoords> index;
-		VectorSlice<ElementType, numDimsSource> value;
+		DerefIter(const std::array<size_t, numCoords> &i, 
+			const VectorSlice<ElementType, numDimsSlice> &v)
+			: index(i), value(v) {}
+		const std::array<size_t, numCoords> &index;
+		MoveOutConst<ElementType, numDimsSlice> &value;
 	};
 
-	template<class ElementType, int numCoords> struct DerefIter<ElementType, numCoords, numCoords>
+	template<class ElementType, int numCoords> struct DerefIter<ElementType, numCoords, 0>
 	{
 		DerefIter(const std::array<size_t, numCoords> &i, const ElementType &v)
 			: index(i), value(v) {}
@@ -111,23 +119,40 @@ namespace impl
 	};
 
 	// STL compatible iterator
-	template<class T, int numCoords>
+	template<class T, int numDimsSource, int numCoords>
 	class ElemIter
 	{
-		typedef ElemIter<T, numCoords> ThisType;
+		typedef ElemIter<T, numDimsSource, numCoords> ThisType;
+		typedef MoveOutConst<T, numDimsSource> SourceType;
+
+		const static int numDimsSlice = numDimsSource - numCoords;
 	public:
 
+		template<int ...IS>
 		ElemIter(const std::array<size_t, numCoords> &from, 
 			const std::array<size_t, numCoords> &to,
 			const std::array<size_t, numCoords> &cur,
-			VectorSlice<T, numCoords> data)
+			const std::array<size_t, numCoords> &coefs,
+			SourceType &source,
+			std::integer_sequence<int, IS...> dummy)
 			: m_from(from), m_to(to),
-			  m_current_pos(cur), m_data(data)
+			  m_current_pos(cur)
 		{
+			static_assert(sizeof...(IS) == numCoords, "Number of indexes must be equal to numCoords");
+
 			for(int i = 0; i != numCoords; ++i)
 			{
 				if(from[i] < to[i]) m_delta[i] = 1;
 				else m_delta[i] = -1;
+
+				m_delta1[i] = coefs[i] * m_delta[i];
+				m_delta2[i] = (from[i] - to[i]) * coefs[i];
+			}
+			if(cur != to) update_mdata<IS...>(source, std::make_integer_sequence<int, numCoords>());
+			else 
+			{
+				// Hack until const methods aren't implemented
+				m_data.reset({}, {}, const_cast<std::remove_const_t<T>*>(source.data));
 			}
 		}
 
@@ -138,9 +163,12 @@ namespace impl
 			while(i != -1)
 			{
 				m_current_pos[i] += m_delta[i];
+				m_data.coefs[numDimsSlice] += m_delta1[i];
 				if(m_current_pos[i] == m_to[i])
 				{
 					m_current_pos[i] = m_from[i];
+					m_data.coefs[numDimsSlice] += m_delta2[i];
+
 					--i;
 				}
 				else break;
@@ -170,23 +198,39 @@ namespace impl
 			return !(*this == other);
 		}
 
-		DerefIter<T, numCoords, numCoords> operator*()
+		DerefIter<T, numCoords, numDimsSlice> operator*()
 		{
-			return DerefIter<T, numCoords, numCoords>(m_current_pos, deref_impl(std::make_index_sequence<numCoords>()));
+			return DerefIter<T, numCoords, numDimsSlice>(m_current_pos, deref_impl(std::make_index_sequence<numCoords>()));
 		}
 
 	private:
+		// Iterator parameters
 		std::array<size_t, numCoords> m_from;
 		std::array<size_t, numCoords> m_to;
 		std::array<size_t, numCoords> m_current_pos;
 		std::array<signed char, numCoords> m_delta;
 
-		VectorSlice<T, numCoords> m_data;
+		// Additional members, for performance only
+		VectorSlice<std::remove_const_t<T>, numDimsSlice> m_data;
+		std::array<size_t, numCoords> m_delta1;
+		std::array<size_t, numCoords> m_delta2;
+
+		template<int ...I, int ...AI>
+		void update_mdata(SourceType &source, std::integer_sequence<int, AI...>)
+		{
+			m_data = source.template fix<I...>(m_current_pos[AI]...);
+		}
 
 		template<size_t ...I>
-		inline T &deref_impl(std::index_sequence<I...>)
+		inline std::enable_if_t<sizeof...(I) == numDimsSource, T&> deref_impl(std::index_sequence<I...>)
 		{
-			return m_data(m_current_pos[I]...);
+			return m_data.data[m_data.coefs[0]];
+		}
+
+		template<size_t ...I>
+		inline std::enable_if_t<sizeof...(I) != numDimsSource, VectorSlice<T, numDimsSlice>&> deref_impl(std::index_sequence<I...>)
+		{
+			return m_data;
 		}
 	};
 
@@ -222,7 +266,9 @@ namespace impl
 
 
 	template<class ElementType, int numDims> class VectorSlice {
-		friend class ElemIter<ElementType, numDims>;
+		
+		template<class ElementType, int numDims, int N>
+		friend class ElemIter;
 		
 		template<class T, int N>
 		friend class VectorSlice;
@@ -332,11 +378,41 @@ namespace impl
 			return res;
 		}
 
-	/*	template<int...IndexNumber>
-		VectorSlice<T, numDims - sizeof...(IndexNumber)> slice() const
+		template<int...Indexes, class ...Args>
+		VectorSlice<ElementType, numDims - sizeof...(Indexes)> fix(Args ...c_index) const
 		{
+			// Just a copy-paste
+			const int new_dim = numDims - sizeof...(Indexes);
+			static_assert(sizeof...(Indexes) == sizeof...(Args), "Indexes and template parameters count do not match");
+			static_assert(valid_index_set<numDims, Indexes...>, "Invalid index set");
+			static_assert(AllNumeric<Args...>::value, "Invalid arguments");
 
-		}*/
+			std::array<size_t, sizeof...(Indexes)> template_index{Indexes...};
+			std::array<size_t, sizeof...(Indexes)> args{size_t(c_index)...};
+
+			std::array<size_t, new_dim + 1> new_coefs;
+			new_coefs[new_dim] = coefs[numDims];
+
+			std::array<size_t, new_dim> new_sizes;
+			for (int i = 0, j = 0; i < numDims; ++i)
+			{
+				if (!has_v_fun<Indexes...>(i))
+				{
+					new_sizes[j] = sizes[i];
+					new_coefs[j] = coefs[i];
+					++j;
+				}
+			}
+			for (size_t i = 0; i != sizeof...(Indexes); ++i)
+			{
+				if (args[i] >= sizes[template_index[i]]) throw std::invalid_argument("One or more index too large");
+				new_coefs[new_dim] += coefs[template_index[i]] * args[i];
+			}
+
+			VectorSlice<ElementType, new_dim> res;
+			res.reset(new_coefs, new_sizes, data);
+			return res;
+		}
 
 	protected:
 		void reset(const std::array<size_t, numDims + 1> &acoefs,
@@ -369,43 +445,40 @@ namespace impl
 	class Indexer
 	{
 	public:
-		typedef std::remove_const_t<T> ClearType;
-		typedef std::conditional_t<std::is_const_v<T>, const VectorSlice<ClearType, N>, VectorSlice<T, N>> SourceType;
+		typedef std::conditional_t<std::is_const_v<T>,
+			const VectorSlice<std::remove_const_t<T>, N>, 
+			VectorSlice<T, N>> SourceType;
+		typedef ElemIter<T, N, sizeof...(IS)> IteratorType;
 
 		Indexer(SourceType &source)
 			: m_source(source)
 		{}
 
-		ElemIter<ClearType, N> begin()
+		IteratorType begin()
 		{
-			std::array<size_t, N> from;
+			std::array<size_t, sizeof...(IS)> from;
 			from.fill(0);
 			
-			auto new_data = m_source;
-			new_data.coefs = {new_data.coefs[IS]..., new_data.coefs[N]};
-			new_data.sizes = {new_data.sizes[IS]...};
+			std::array<size_t, sizeof...(IS)> to = {m_source.size()[IS]...};
 
-			std::array<size_t, N> to = m_source.size();
-
-			ElemIter<ClearType, N> it(from, new_data.size(), // From and to
+			IteratorType it({from[IS]...}, {m_source.size()[IS]...}, // From and to
 				from, // current position
-				new_data);
+				{m_source.coefs[IS]...},
+				m_source, std::integer_sequence<int, IS...>());
 			return it;
 		}
 
-		ElemIter<ClearType, N> end()
+		IteratorType end()
 		{
-			std::array<size_t, N> from;
+			std::array<size_t, sizeof...(IS)> from;
 			from.fill(0);
+			
+			std::array<size_t, sizeof...(IS)> to = {m_source.size()[IS]...};
 
-			auto new_data = m_source;
-			new_data.coefs = {new_data.coefs[IS]..., new_data.coefs[N]};
-			new_data.sizes = {new_data.sizes[IS]...};
-
-			std::array<size_t, N> to = m_source.size();
-			ElemIter<ClearType, N> it(from, new_data.size(), // From and to
-				{to[IS]...}, // Current position
-				new_data);
+			IteratorType it({from[IS]...}, {m_source.size()[IS]...}, // From and to
+				to, // current position
+				{m_source.coefs[IS]...},
+				m_source, std::integer_sequence<int, IS...>());
 			return it;
 		}
 
