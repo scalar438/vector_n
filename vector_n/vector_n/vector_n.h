@@ -104,7 +104,7 @@ namespace impl
 	template<class ElementType, int numCoords, int numDimsSlice> struct DerefIter
 	{
 		DerefIter(const std::array<size_t, numCoords> &i, 
-			const VectorSlice<ElementType, numDimsSlice> &v)
+			MoveOutConst<ElementType, numDimsSlice> &v)
 			: index(i), value(v) {}
 		const std::array<size_t, numCoords> &index;
 		MoveOutConst<ElementType, numDimsSlice> &value;
@@ -200,7 +200,7 @@ namespace impl
 
 		DerefIter<T, numCoords, numDimsSlice> operator*()
 		{
-			return DerefIter<T, numCoords, numDimsSlice>(m_current_pos, deref_impl(std::make_index_sequence<numCoords>()));
+			return DerefIter<T, numCoords, numDimsSlice>(m_current_pos, deref_impl(std::make_integer_sequence<int, numCoords>()));
 		}
 
 	private:
@@ -222,13 +222,15 @@ namespace impl
 		}
 
 		template<size_t ...I>
-		inline std::enable_if_t<sizeof...(I) == numDimsSource, T&> deref_impl(std::index_sequence<I...>)
+		inline std::enable_if_t<sizeof...(I) == numDimsSource, T&> deref_impl(std::integer_sequence<int, I...>)
 		{
 			return m_data.data[m_data.coefs[0]];
 		}
 
 		template<size_t ...I>
-		inline std::enable_if_t<sizeof...(I) != numDimsSource, VectorSlice<T, numDimsSlice>&> deref_impl(std::index_sequence<I...>)
+		inline std::enable_if_t<
+			sizeof...(I) != numDimsSource, 
+			VectorSlice<std::remove_const_t<T>, numDimsSlice>&> deref_impl(std::integer_sequence<int, I...>)
 		{
 			return m_data;
 		}
@@ -430,7 +432,7 @@ namespace impl
 		ElementType *data;
 
 		template<typename ... Indexes>
-		size_t getIndex(Indexes ... indexes)
+		size_t getIndex(Indexes ... indexes) const
 		{
 			assert(impl::checkIndex(sizes.data(), indexes...) && "Indexes is invalid.");
 
@@ -452,17 +454,15 @@ namespace impl
 
 		Indexer(SourceType &source)
 			: m_source(source)
-		{}
+		{
+			from.fill(0);
+			to = m_source.size();
+		}
 
 		IteratorType begin()
 		{
-			std::array<size_t, sizeof...(IS)> from;
-			from.fill(0);
-			
-			std::array<size_t, sizeof...(IS)> to = {m_source.size()[IS]...};
-
 			IteratorType it({from[IS]...}, {m_source.size()[IS]...}, // From and to
-				from, // current position
+				{from[IS]...}, // current position
 				{m_source.coefs[IS]...},
 				m_source, std::integer_sequence<int, IS...>());
 			return it;
@@ -470,13 +470,8 @@ namespace impl
 
 		IteratorType end()
 		{
-			std::array<size_t, sizeof...(IS)> from;
-			from.fill(0);
-			
-			std::array<size_t, sizeof...(IS)> to = {m_source.size()[IS]...};
-
 			IteratorType it({from[IS]...}, {m_source.size()[IS]...}, // From and to
-				to, // current position
+				{to[IS]...}, // current position
 				{m_source.coefs[IS]...},
 				m_source, std::integer_sequence<int, IS...>());
 			return it;
@@ -485,6 +480,9 @@ namespace impl
 		Indexer &rev(int) {return *this;}
 	private:
 		SourceType &m_source;
+
+		std::array<size_t, N> from;
+		std::array<size_t, N> to;
 
 		static_assert(valid_index_set<N, IS...>, "Index set must be a permutation");
 	};
