@@ -210,7 +210,7 @@ namespace impl
 		std::array<size_t, numCoords> m_current_pos;
 		std::array<signed char, numCoords> m_delta;
 
-		// Additional members, for performance only
+		// Additional members, just for performance
 		VectorSlice<std::remove_const_t<T>, numDimsSlice> m_data;
 		std::array<size_t, numCoords> m_delta1;
 		std::array<size_t, numCoords> m_delta2;
