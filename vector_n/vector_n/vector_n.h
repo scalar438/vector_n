@@ -134,7 +134,7 @@ namespace impl
 			const std::array<size_t, numCoords> &cur,
 			const std::array<size_t, numCoords> &coefs,
 			SourceType &source,
-			std::integer_sequence<int, IS...> dummy)
+			std::integer_sequence<int, IS...>)
 			: m_from(from), m_to(to),
 			  m_current_pos(cur)
 		{
@@ -215,19 +215,19 @@ namespace impl
 		std::array<size_t, numCoords> m_delta1;
 		std::array<size_t, numCoords> m_delta2;
 
-		template<int ...I, int ...AI>
-		void update_mdata(SourceType &source, std::integer_sequence<int, AI...>)
+		template<int ...I, int ...A>
+		void update_mdata(SourceType &source, std::integer_sequence<int, A...>)
 		{
-			m_data = source.template fix<I...>(m_current_pos[AI]...);
+			m_data = source.template fix<I...>(m_current_pos[A]...);
 		}
 
-		template<size_t ...I>
+		template<int ...I>
 		inline std::enable_if_t<sizeof...(I) == numDimsSource, T&> deref_impl(std::integer_sequence<int, I...>)
 		{
 			return m_data.data[m_data.coefs[0]];
 		}
 
-		template<size_t ...I>
+		template<int ...I>
 		inline std::enable_if_t<
 			sizeof...(I) != numDimsSource, 
 			VectorSlice<std::remove_const_t<T>, numDimsSlice>&> deref_impl(std::integer_sequence<int, I...>)
