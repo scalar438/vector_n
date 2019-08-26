@@ -23,16 +23,21 @@ namespace impl
 		return product(args...) * first;
 	}
 
-	template<typename FirstIndex, typename ... Indexes>
-	inline static FirstIndex index(const size_t *sizes, const size_t *dims, FirstIndex first)
+	size_t index(const size_t *coefs)
 	{
-		return *dims * first;
+		return *coefs;
 	}
 
 	template<typename FirstIndex, typename ... Indexes>
-	inline static FirstIndex index(const size_t *sizes, const size_t *dims, FirstIndex first, Indexes ... indexes)
+	inline static size_t index(const size_t *coefs, FirstIndex first)
 	{
-		return *dims * first + index(sizes, dims + 1, indexes...);
+		return *coefs * first + *(coefs + 1);
+	}
+
+	template<typename FirstIndex, typename ... Indexes>
+	inline static size_t index(const size_t *coefs, FirstIndex first, Indexes ... indexes)
+	{
+		return *coefs * first + index(coefs + 1, indexes...);
 	}
 
 	template<typename ...Args>
@@ -46,23 +51,23 @@ namespace impl
 		return positive;
 	};
 
-	inline bool checkIndex(const size_t *sizes){ return true; }
+	inline bool checkIndex(const size_t *){ return true; }
 
 	template<typename FirstIndex, typename ... Indexes>
 	inline static bool checkIndex(const size_t *sizes, FirstIndex first, Indexes ... indexes)
 	{
 		// May be I should to use additional checks for signed types because of UB
-		return first < size_t(*sizes) && checkIndex(sizes + 1, indexes...);
+		return size_t(first) < *sizes && checkIndex(sizes + 1, indexes...);
 	}
 
 	template<typename FirstArg>
-	inline void calcCoefficients(size_t *arr, FirstArg first)
+	inline void calcCoefficients(size_t *arr, FirstArg)
 	{
 		*arr = 1;
 	}
 
 	template<typename FirstArg, typename SecondArg, typename ... Args>
-	inline void calcCoefficients(size_t *arr, FirstArg first, SecondArg second, Args ... args)
+	inline void calcCoefficients(size_t *arr, FirstArg, SecondArg second, Args ... args)
 	{
 		calcCoefficients(arr + 1, second, args...);
 		*arr = *(arr + 1) * second;
@@ -79,104 +84,451 @@ namespace impl
 		}
 	}
 
-	template<class First, class ...Args> struct AllNumeric
+	template<class ...Args> struct AllNumeric
+	{
+		const static auto value = true;
+	};
+
+	template<class First, class ...Args> struct AllNumeric<First, Args...>
 	{
 		const static auto value = std::is_integral<First>::value && AllNumeric<Args...>::value;
 	};
 
-	template<class Arg> struct AllNumeric<Arg>
+	template<class ElementType, int numDims> class VectorSlice;
+
+	template<class ElementType, int numDims>
+	using MoveOutConst = std::conditional_t<std::is_const_v<ElementType>, 
+		const VectorSlice<std::remove_const_t<ElementType>, numDims>,
+		VectorSlice<ElementType, numDims>>;
+
+	template<class ElementType, int numCoords, int numDimsSlice> struct DerefIter
 	{
-		const static auto value = std::is_integral<Arg>::value;
+		DerefIter(const std::array<size_t, numCoords> &i, 
+			MoveOutConst<ElementType, numDimsSlice> &v)
+			: index(i), value(v) {}
+		const std::array<size_t, numCoords> &index;
+		MoveOutConst<ElementType, numDimsSlice> &value;
+	};
+
+	template<class ElementType, int numCoords> struct DerefIter<ElementType, numCoords, 0>
+	{
+		DerefIter(const std::array<size_t, numCoords> &i, const ElementType &v)
+			: index(i), value(v) {}
+		const std::array<size_t, numCoords> &index;
+		const ElementType &value;
+	};
+
+	// STL compatible iterator
+	template<class T, int numDimsSource, int numCoords>
+	class ElemIter
+	{
+		typedef ElemIter<T, numDimsSource, numCoords> ThisType;
+		typedef MoveOutConst<T, numDimsSource> SourceType;
+
+		const static int numDimsSlice = numDimsSource - numCoords;
+	public:
+
+		template<int ...IS>
+		ElemIter(const std::array<size_t, numCoords> &from, 
+			const std::array<size_t, numCoords> &to,
+			const std::array<size_t, numCoords> &cur,
+			const std::array<size_t, numCoords> &coefs,
+			SourceType &source,
+			std::integer_sequence<int, IS...>)
+			: m_from(from), m_to(to),
+			  m_current_pos(cur)
+		{
+			static_assert(sizeof...(IS) == numCoords, "Number of indexes must be equal to numCoords");
+
+			for(int i = 0; i != numCoords; ++i)
+			{
+				if(from[i] < to[i]) m_delta[i] = 1;
+				else m_delta[i] = -1;
+
+				m_delta1[i] = coefs[i] * m_delta[i];
+				m_delta2[i] = (from[i] - to[i]) * coefs[i];
+			}
+			if(cur != to) update_mdata<IS...>(source, std::make_integer_sequence<int, numCoords>());
+			else 
+			{
+				// Hack until const methods aren't implemented
+				m_data.reset({}, {}, const_cast<std::remove_const_t<T>*>(source.data));
+			}
+		}
+
+		ThisType &operator++()
+		{
+			int i = numCoords - 1;
+
+			while(i != -1)
+			{
+				m_current_pos[i] += m_delta[i];
+				m_data.coefs[numDimsSlice] += m_delta1[i];
+				if(m_current_pos[i] == m_to[i])
+				{
+					m_current_pos[i] = m_from[i];
+					m_data.coefs[numDimsSlice] += m_delta2[i];
+
+					--i;
+				}
+				else break;
+			}
+			if(i == -1) m_current_pos = m_to;
+
+			return *this;
+		}
+
+		ThisType operator++(int)
+		{
+			auto tmp = *this;
+			++*this;
+			return tmp;
+		}
+
+		bool operator==(const ThisType &other) const
+		{
+			return m_current_pos == other.m_current_pos && 
+				m_data.data == other.m_data.data &&
+				m_from == other.m_from && 
+				m_to == other.m_to;
+		}
+
+		bool operator!=(const ThisType &other) const
+		{
+			return !(*this == other);
+		}
+
+		DerefIter<T, numCoords, numDimsSlice> operator*()
+		{
+			return DerefIter<T, numCoords, numDimsSlice>(m_current_pos, deref_impl(std::make_integer_sequence<int, numCoords>()));
+		}
+
+	private:
+		// Iterator parameters
+		std::array<size_t, numCoords> m_from;
+		std::array<size_t, numCoords> m_to;
+		std::array<size_t, numCoords> m_current_pos;
+		std::array<signed char, numCoords> m_delta;
+
+		// Additional members, just for performance
+		VectorSlice<std::remove_const_t<T>, numDimsSlice> m_data;
+		std::array<size_t, numCoords> m_delta1;
+		std::array<size_t, numCoords> m_delta2;
+
+		template<int ...I, int ...A>
+		void update_mdata(SourceType &source, std::integer_sequence<int, A...>)
+		{
+			m_data = source.template fix<I...>(m_current_pos[A]...);
+		}
+
+		template<int ...I>
+		inline std::enable_if_t<sizeof...(I) == numDimsSource, T&> deref_impl(std::integer_sequence<int, I...>)
+		{
+			return m_data.data[m_data.coefs[0]];
+		}
+
+		template<int ...I>
+		inline std::enable_if_t<
+			sizeof...(I) != numDimsSource, 
+			VectorSlice<std::remove_const_t<T>, numDimsSlice>&> deref_impl(std::integer_sequence<int, I...>)
+		{
+			return m_data;
+		}
+	};
+
+	template<class T, int N, int ...IS>
+	class Indexer;
+
+	template <int V, int... Tail> constexpr bool has_v = false;
+	template <int V, int F, int... Tail>
+	constexpr bool has_v<V, F, Tail...> = (V == F) || has_v<V, Tail...>;
+
+	template <int... I> constexpr bool distinct = true;
+	template <int F, int S, int... Tail>
+	constexpr bool distinct<F, S, Tail...> = !has_v<F, S, Tail...> && distinct<S, Tail...>;
+
+	template <int I, int... Tail> constexpr int min = I;
+	template <int F, int S, int... Tail>
+	constexpr int min<F, S, Tail...> = min<(F < S ? F : S), Tail...>;
+
+	template <int I, int... Tail> constexpr int max = I;
+	template <int F, int S, int... Tail>
+	constexpr int max<F, S, Tail...> = max<(F > S ? F : S), Tail...>;
+
+	template<int N, int ...I> constexpr bool valid_index_set = min<I...> >= 0 && max<I...> < N && distinct<I...>;
+
+	template<int...Nums> bool has_v_fun(int a)
+	{
+		for(int x : {Nums...})
+		{
+			if(x == a) return true;
+		}
+		return false;
+	}
+
+
+	template<class ElementType, int numDims> class VectorSlice {
+		
+		template<class ElementType, int numDims, int N>
+		friend class ElemIter;
+		
+		template<class T, int N>
+		friend class VectorSlice;
+
+		template<class T, int N, int ... IS>
+		friend class Indexer;
+
+	public:
+		VectorSlice() : coefs{0}, sizes{0}
+		{
+		}
+
+		template<typename ... Indexes>
+		inline ElementType& operator()(Indexes ... indexes)
+		{
+			static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+			static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+			
+			return data[getIndex(indexes ...)];
+		}
+
+		template<typename ... Indexes>
+		inline const ElementType& operator()(Indexes ... indexes) const
+		{
+			static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+			static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+			return data[getIndex(indexes ...)];
+		}
+
+		template<typename ... Indexes>
+		inline ElementType& at(Indexes ... indexes)
+		{
+			static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+			static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+			if(!impl::checkIndex(indexes...)) throw std::out_of_range("One or more indexes are invalid");
+
+			return data[getIndex(indexes ...)];
+		}
+
+		template<typename ... Indexes>
+		inline const ElementType& at(Indexes ... indexes) const
+		{
+			static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
+			static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
+
+			if(!impl::checkIndex(indexes...)) throw std::out_of_range("One or more indexes are invalid");
+
+			return data[getIndex(indexes ...)];
+		}
+
+		template<int ...IS> Indexer<ElementType, numDims, IS...> get_indexer_mut()
+		{
+			return Indexer<ElementType, numDims, IS...>(*this);
+		}
+
+		template<int ...IS> Indexer<const ElementType, numDims, IS...> get_indexer() const
+		{
+			return Indexer<const ElementType, numDims, IS...>(*this);
+		}
+
+		inline size_t size(const int numberDims) const
+		{
+			assert((numberDims - 1) <= numDims && (numberDims - 1) >= 0 && "Parameters count is invalid");
+
+			return sizes[numberDims - 1];
+		}
+
+		inline const vector_size<numDims>& size() const
+		{
+			return sizes;
+		}
+
+		template<int...Indexes, class ...Args>
+		VectorSlice<ElementType, numDims - sizeof...(Indexes)> fix(Args ...c_index)
+		{
+			const int new_dim = numDims - sizeof...(Indexes);
+			static_assert(sizeof...(Indexes) == sizeof...(Args), "Indexes and template parameters count do not match");
+			static_assert(valid_index_set<numDims, Indexes...>, "Invalid index set");
+			static_assert(AllNumeric<Args...>::value, "Invalid arguments");
+
+			std::array<size_t, sizeof...(Indexes)> template_index{Indexes...};
+			std::array<size_t, sizeof...(Indexes)> args{size_t(c_index)...};
+			
+			std::array<size_t, new_dim + 1> new_coefs;
+			new_coefs[new_dim] = coefs[numDims];
+
+			std::array<size_t, new_dim> new_sizes;
+			for(int i = 0, j = 0; i < numDims; ++i)
+			{
+				if(!has_v_fun<Indexes...>(i))
+				{
+					new_sizes[j] = sizes[i];
+					new_coefs[j] = coefs[i];
+					++j;
+				}
+			}
+			for(size_t i = 0; i != sizeof...(Indexes); ++i)
+			{
+				if(args[i] >= sizes[template_index[i]]) throw std::invalid_argument("One or more index too large");
+				new_coefs[new_dim] += coefs[template_index[i]] * args[i];
+			}
+
+			VectorSlice<ElementType, new_dim> res;
+			res.reset(new_coefs, new_sizes, data);
+			return res;
+		}
+
+		template<int...Indexes, class ...Args>
+		VectorSlice<ElementType, numDims - sizeof...(Indexes)> fix(Args ...c_index) const
+		{
+			// Just a copy-paste
+			const int new_dim = numDims - sizeof...(Indexes);
+			static_assert(sizeof...(Indexes) == sizeof...(Args), "Indexes and template parameters count do not match");
+			static_assert(valid_index_set<numDims, Indexes...>, "Invalid index set");
+			static_assert(AllNumeric<Args...>::value, "Invalid arguments");
+
+			std::array<size_t, sizeof...(Indexes)> template_index{Indexes...};
+			std::array<size_t, sizeof...(Indexes)> args{size_t(c_index)...};
+
+			std::array<size_t, new_dim + 1> new_coefs;
+			new_coefs[new_dim] = coefs[numDims];
+
+			std::array<size_t, new_dim> new_sizes;
+			for (int i = 0, j = 0; i < numDims; ++i)
+			{
+				if (!has_v_fun<Indexes...>(i))
+				{
+					new_sizes[j] = sizes[i];
+					new_coefs[j] = coefs[i];
+					++j;
+				}
+			}
+			for (size_t i = 0; i != sizeof...(Indexes); ++i)
+			{
+				if (args[i] >= sizes[template_index[i]]) throw std::invalid_argument("One or more index too large");
+				new_coefs[new_dim] += coefs[template_index[i]] * args[i];
+			}
+
+			VectorSlice<ElementType, new_dim> res;
+			res.reset(new_coefs, new_sizes, data);
+			return res;
+		}
+
+	protected:
+		void reset(const std::array<size_t, numDims + 1> &acoefs,
+			const std::array<size_t, numDims> &asizes, ElementType *adata)
+		{
+			coefs = acoefs;
+			sizes = asizes;
+			data = adata;
+		}
+
+	private:
+		std::array<size_t, numDims + 1> coefs;
+		std::array<size_t, numDims> sizes;
+
+		ElementType *data;
+
+		template<typename ... Indexes>
+		size_t getIndex(Indexes ... indexes) const
+		{
+			assert(impl::checkIndex(sizes.data(), indexes...) && "Indexes is invalid.");
+
+			auto index = impl::index(coefs.data(), indexes...);
+
+			return index;
+		}
+	};
+
+	// IS - Index Sequense
+	template<class T, int N, int ... IS>
+	class Indexer
+	{
+	public:
+		typedef std::conditional_t<std::is_const_v<T>,
+			const VectorSlice<std::remove_const_t<T>, N>, 
+			VectorSlice<T, N>> SourceType;
+		typedef ElemIter<T, N, sizeof...(IS)> IteratorType;
+
+		Indexer(SourceType &source)
+			: m_source(source)
+		{
+			from.fill(0);
+			to = m_source.size();
+		}
+
+		IteratorType begin()
+		{
+			IteratorType it({from[IS]...}, {m_source.size()[IS]...}, // From and to
+				{from[IS]...}, // current position
+				{m_source.coefs[IS]...},
+				m_source, std::integer_sequence<int, IS...>());
+			return it;
+		}
+
+		IteratorType end()
+		{
+			IteratorType it({from[IS]...}, {m_source.size()[IS]...}, // From and to
+				{to[IS]...}, // current position
+				{m_source.coefs[IS]...},
+				m_source, std::integer_sequence<int, IS...>());
+			return it;
+		}
+
+		Indexer &rev(int) {return *this;}
+	private:
+		SourceType &m_source;
+
+		std::array<size_t, N> from;
+		std::array<size_t, N> to;
+
+		static_assert(valid_index_set<N, IS...>, "Index set must be a permutation");
 	};
 }
 
 template<typename ElementType, size_t numDims>
-class vector_n
+class vector_n : public impl::VectorSlice<ElementType, numDims>
 {
+	typedef impl::VectorSlice<ElementType, numDims> Base;
 public:
-	vector_n() {};
+	vector_n() 
+	{
+		// Do something
+	}
 
 	template<typename ... Sizes>
 	vector_n(Sizes ... sizes)
 		: data(impl::product(sizes ...))
-		, sizes{ size_t(sizes)... }
 	{
 		static_assert(sizeof...(sizes) == numDims, "Parameters count is invalid");
 		static_assert(impl::AllNumeric<Sizes...>::value, "Parameters type is invalid");
 
 		if(!impl::allPositive(sizes ...)) throw std::invalid_argument("All dimensions must be positive");
 
-		impl::calcCoefficients(dims.data(), sizes ...);
+		std::array<size_t, numDims + 1> coefs;
+		coefs[numDims] = 0;
+
+		impl::calcCoefficients(coefs.data(), sizes ...);
+		impl::VectorSlice<ElementType, numDims>::reset(coefs, {size_t(sizes)...}, data.data());
 	}
 
 	inline void resize(const vector_size <numDims> &sizesDims)
 	{
 		data.resize(std::accumulate(sizesDims.begin(), sizesDims.end(), 1, std::multiplies<size_t>()));
-		sizes = sizesDims;
+		std::array<size_t, numDims> sizes = sizesDims;
+		std::array<size_t, numDims + 1> coefs;
+		coefs[numDims] = 0;
 
-		impl::calcCoefficients<numDims>(dims.data(), sizesDims.data());
+		impl::calcCoefficients<numDims>(coefs.data(), sizesDims.data());
+		reset(coefs, sizes, data.data());
 	}
 
 	template<typename ... Sizes>
 	inline void resize(Sizes ... sizesDims)
 	{
-		static_assert(sizeof...(sizesDims) == numDims, "Parameters count is invalid");
-
-		data.resize(impl::product(sizesDims ...));
-		sizes = { size_t(sizesDims)... };
-		impl::calcCoefficients(dims.data(), sizesDims ...);
-	}
-
-	template<typename ... Indexes>
-	inline ElementType& operator()(Indexes ... indexes)
-	{
-		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
-		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-		
-		return data[getIndex(indexes ...)];
-	}
-
-	template<typename ... Indexes>
-	inline const ElementType& operator()(Indexes ... indexes) const
-	{
-		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
-		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-
-		return data[getIndex(indexes ...)];
-	}
-
-	template<typename ... Indexes>
-	inline ElementType& at(Indexes ... indexes)
-	{
-		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
-		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-
-		if(!impl::checkIndex(sizes.data(), indexes...)) throw std::out_of_range("One or more indexes are invalid");
-
-		return data[getIndex(indexes ...)];
-	}
-
-	template<typename ... Indexes>
-	inline const ElementType& at(Indexes ... indexes) const
-	{
-		static_assert(impl::AllNumeric<Indexes...>::value, "Parameters type is invalid");
-		static_assert(sizeof...(indexes) == numDims, "Parameters count is invalid");
-
-		if(!impl::checkIndex(sizes.data(), indexes...)) throw std::out_of_range("One or more indexes are invalid");
-
-		return data[getIndex(indexes ...)];
-	}
-
-	inline const size_t& size(const int numberDims) const
-	{
-		assert((numberDims - 1) <= numDims && (numberDims - 1) >= 0 && "Parameters count is invalid");
-
-		return sizes[numberDims - 1];
-	}
-
-	inline const vector_size<numDims>& size() const
-	{
-		return sizes;
+		resize({sizesDims...});
 	}
 
 	inline void clear()
@@ -212,21 +564,10 @@ public:
 	template<typename ... Indexes>
 	inline bool existData(Indexes ... indexes) const
 	{
-		return impl::checkIndex(sizes.data(), indexes...);
+		return impl::checkIndex(Base::sizes.data(), indexes...);
 	}
 
 private:
-	template<typename ... Indexes>
-	size_t getIndex(Indexes ... indexes)
-	{
-		assert(impl::checkIndex(sizes.data(), indexes...) && "Indexes is invalid.");
-
-		auto index = impl::index(sizes.data(), dims.data(), indexes...);
-
-		return index;
-	}
 
 	std::vector<ElementType> data;
-	std::array<size_t, numDims> dims;
-	std::array<size_t, numDims> sizes;
 };
