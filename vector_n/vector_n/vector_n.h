@@ -585,6 +585,7 @@ public:
 		// But special for the current
 		data = other.data;
 		Base::set_buf(data.data());
+		return *this;
 	}
 
 private:
