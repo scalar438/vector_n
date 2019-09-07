@@ -425,6 +425,11 @@ namespace impl
 			data = adata;
 		}
 
+		void set_buf(ElementType *ptr)
+		{
+			data = ptr;
+		}
+
 	private:
 		std::array<size_t, numDims + 1> coefs;
 		std::array<size_t, numDims> sizes;
@@ -498,6 +503,12 @@ public:
 		// Do something
 	}
 
+	vector_n(const vector_n &other)
+		: Base(other), data(other.data)
+	{
+		Base::set_buf(data.data());
+	}
+
 	template<typename ... Sizes>
 	vector_n(Sizes ... sizes)
 		: data(impl::product(sizes ...))
@@ -565,6 +576,15 @@ public:
 	inline bool existData(Indexes ... indexes) const
 	{
 		return impl::checkIndex(Base::sizes.data(), indexes...);
+	}
+
+	vector_n &operator=(const vector_n &other)
+	{
+		// Simple assignment for the base class
+		*static_cast<Base*>(this) = static_cast<const Base&>(other);
+		// But special for the current
+		data = other.data;
+		Base::set_buf(data.data());
 	}
 
 private:

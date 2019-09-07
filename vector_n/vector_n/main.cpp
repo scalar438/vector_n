@@ -322,11 +322,55 @@ bool test_fix_full()
 	return true;
 }
 
+bool test_copy_constructor()
+{
+	vector_n<int, 3> a(3, 4, 5);
+
+	int val = 0;
+	for (int i1 = 0; i1 < 3; ++i1)
+		for (int i2 = 0; i2 < 4; ++i2)
+			for (int i3 = 0; i3 < 5; ++i3) a(i1, i2, i3) = val++;
+	
+	// Copy constructor
+	vector_n<int, 3> b = a;
+	for (int i1 = 0; i1 < 3; ++i1)
+		for (int i2 = 0; i2 < 4; ++i2)
+			for (int i3 = 0; i3 < 5; ++i3) b(i1, i2, i3) += 42;
+	
+	for (int i1 = 0; i1 < 3; ++i1)
+		for (int i2 = 0; i2 < 4; ++i2)
+			for (int i3 = 0; i3 < 5; ++i3)
+			{
+				if (a(i1, i2, i3) != b(i1, i2, i3) - 42)
+				{
+					return false;
+				}
+			}
+
+	return true;
+}
+
+bool test_copy_assignment()
+{
+	vector_n<int, 3> a;
+	{
+		vector_n<int, 3> b(3, 4, 5);
+		b(0, 0, 0) = 21;
+		a = b;
+		b(0, 0, 0) = 12;
+		// Must be 12, 21
+		if(b(0, 0, 0) != 12 || a(0, 0, 0) != 21) return false;
+	}
+	// Try to get value
+	return a(0, 0, 0) == 21;
+}
+
 int main()
 {
 	auto tests = {test_index_full_1, test_index_full_2,
 		test_index_partial1, test_index_partial2,
-		test_fix1, test_fix2, test_fix_full};
+		test_fix1, test_fix2, test_fix_full, 
+		test_copy_constructor, test_copy_assignment};
 	for (auto test : tests)
 	{
 		if (!test())
