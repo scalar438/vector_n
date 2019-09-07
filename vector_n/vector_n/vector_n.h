@@ -580,11 +580,15 @@ public:
 
 	vector_n &operator=(const vector_n &other)
 	{
-		// Simple assignment for the base class
-		*static_cast<Base*>(this) = static_cast<const Base&>(other);
-		// But special for the current
-		data = other.data;
-		Base::set_buf(data.data());
+		if(&other != this)
+		{
+			data = other.data;
+			// Simple assignment for the base class
+			*static_cast<Base*>(this) = static_cast<const Base&>(other);
+
+			// But special for the pointer
+			Base::set_buf(data.data());
+		}
 		return *this;
 	}
 
